@@ -60,6 +60,9 @@ cmake-build-*/
 # ctags
 tags
 
+# cscope
+cscope.out
+
 # Mongo Explorer plugin
 .idea/**/mongoSettings.xml
 

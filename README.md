@@ -1,10 +1,10 @@
-student-1:
-github username - suhas-bn-1412
-UCINetId - sbasappa
+#### student-1:
+- github username: suhas-bn-1412
+- UCINetId: sbasappa
 
-student-2:
-github username - SanjanaPatel
-UCINetId - sgowdrum
+#### student-2
+- github username: SanjanaPatel
+- UCINetId: sgowdrum
 
 # PeterDB
 

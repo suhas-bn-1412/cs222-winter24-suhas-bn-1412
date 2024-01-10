@@ -43,6 +43,7 @@ namespace PeterDB {
     }
 
     RC IndexManager::printBTree(IXFileHandle &ixFileHandle, const Attribute &attribute, std::ostream &out) const {
+        return 0;
     }
 
     IX_ScanIterator::IX_ScanIterator() {

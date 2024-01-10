@@ -2,6 +2,7 @@
 
 #include <readline/readline.h>
 #include <readline/history.h>
+#include <climits>
 #include <fstream>
 
 // Command parsing delimiters

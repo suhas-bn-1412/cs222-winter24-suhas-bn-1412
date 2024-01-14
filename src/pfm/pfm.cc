@@ -1,4 +1,5 @@
 #include "src/include/pfm.h"
+#include "src/include/util.h"
 
 namespace PeterDB {
     PagedFileManager &PagedFileManager::instance() {
@@ -15,57 +16,58 @@ namespace PeterDB {
     PagedFileManager &PagedFileManager::operator=(const PagedFileManager &) = default;
 
     RC PagedFileManager::createFile(const std::string &fileName) {
-        /*
-         * check if the file is already present
-         * return error if present
-         *
-         * create file using fopen in a+ mode
-         * create file handle and set the fd, fname
-         *
-         * create metadata for the file. it just contains number of pages present
-         * write the metadata using filehandle.writepage (page num is 0)
-         *
-         * set fd as -1 before closing the file
-         * close the file (fclose)
-         */
-        return -1;
+        // check if the file with the same name is already present
+        if (file_exists(fileName)) {
+            ERROR("PagedFileManager::createFile - file '%s' already exists", fileName);
+            return -1;
+        }
+
+        if (m_fhStore.end() == m_fhStore.find(fileName)) {
+            ERROR("PagedFileManager::createFile - file '%s' already created", fileName);
+            return -1;
+        }
+
+        // create file handle for this file and store it in the map
+        FileHandle *fh = new FileHandle();
+        fh->setFileName(fileName);
+        m_fhStore[fileName] = fh;
+
+        int fd = open(fileName.c_str(), O_CREAT);
+        if (-1 == fd) {
+            ERROR("PagedFileManager::createFile - error while creating file '%s'", fileName);
+            return -1;
+        }
+
+        if (!close(fd)) {
+            ERROR("PagedFileManager::createFile - error while closing file '%s'", fileName);
+            return -1;
+        }
+
+        return 0;
     }
 
     RC PagedFileManager::destroyFile(const std::string &fileName) {
-        /*
-         * check if the fh is present with us
-         * if not return error
-         *
-         * close the file if it's currently open
-         * delete the file using unlink
-         * call destructor of the fh
-         */
-        return -1;
+        auto iter = m_fhStore.find(fileName);
+        if (iter == m_fhStore.end()) {
+            ERROR("PagedFileManager::destroyFile - file '%s' not created", fileName);
+            return -1;
+        }
+
+        FileHandle* fh = iter->second;
+        fh->closeFile();
+        
+        m_fhStore.erase(iter);
+
+        return 0;
     }
 
     RC PagedFileManager::openFile(const std::string &fileName, FileHandle &fileHandle) {
-        /*
-         * check if filename is present
-         *
-         * fetch the fh from the map
-         * using fopen open the file for rd/wr
-         * set the fd in fh
-         *
-         * return fh
-         */
-        return -1;
+        assert(fileHandle.getFileName() == fileName);
+        return fileHandle.openFile();
     }
 
     RC PagedFileManager::closeFile(FileHandle &fileHandle) {
-        /*
-         * check if file is present
-         *
-         * using fh, get the fd
-         * do fclose on fd
-         *
-         * set fd to -1
-         */
-        return -1;
+        return fileHandle.closeFile();
     }
 
     FileHandle::FileHandle() {
@@ -75,6 +77,21 @@ namespace PeterDB {
     }
 
     FileHandle::~FileHandle() = default;
+
+    std::string FileHandle::getFileName() {
+        return "";
+    }
+
+    void FileHandle::setFileName(const std::string& fileName) {
+    }
+
+    RC FileHandle::openFile() {
+        return -1;
+    }
+
+    RC FileHandle::closeFile() {
+        return -1;
+    }
 
     RC FileHandle::readPage(PageNum pageNum, void *data) {
         /*

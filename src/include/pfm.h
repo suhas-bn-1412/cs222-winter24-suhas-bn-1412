@@ -4,6 +4,7 @@
 #define PAGE_SIZE 4096
 
 #include <string>
+#include <map>
 
 namespace PeterDB {
 
@@ -27,6 +28,8 @@ namespace PeterDB {
         PagedFileManager(const PagedFileManager &);                         // Prevent construction by copying
         PagedFileManager &operator=(const PagedFileManager &);              // Prevent assignment
 
+    private:
+        std::map<std::string, FileHandle*> m_fhStore;
     };
 
     class FileHandle {
@@ -45,6 +48,12 @@ namespace PeterDB {
         unsigned getNumberOfPages();                                        // Get the number of pages in the file
         RC collectCounterValues(unsigned &readPageCount, unsigned &writePageCount,
                                 unsigned &appendPageCount);                 // Put current counter values into variables
+
+        std::string getFileName();
+        void setFileName(const std::string& fileName);
+
+        RC openFile();
+        RC closeFile();
     };
 
 } // namespace PeterDB

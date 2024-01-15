@@ -2,6 +2,7 @@
 #define _pfm_h_
 
 #define PAGE_SIZE 4096
+#define HIDDEN_PAGES 1
 
 #include <string>
 #include <map>
@@ -29,7 +30,7 @@ namespace PeterDB {
         PagedFileManager &operator=(const PagedFileManager &);              // Prevent assignment
 
     private:
-        std::map<std::string, FileHandle*> m_fhStore;
+        std::map<std::string, bool> m_fhStore;
     };
 
     class FileHandle {
@@ -52,8 +53,16 @@ namespace PeterDB {
         std::string getFileName();
         void setFileName(const std::string& fileName);
 
+        bool isActive();
         RC openFile();
         RC closeFile();
+
+    private:
+        void readMetadata();
+        void writeMetadata();
+        FILE* m_fstream = nullptr;
+        std::string m_fileName = "";
+        unsigned m_curPagesInFile = 0;
     };
 
 } // namespace PeterDB

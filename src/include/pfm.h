@@ -5,7 +5,7 @@
 #define HIDDEN_PAGES 1
 
 #include <string>
-#include <map>
+#include <set>
 
 namespace PeterDB {
 
@@ -30,7 +30,7 @@ namespace PeterDB {
         PagedFileManager &operator=(const PagedFileManager &);              // Prevent assignment
 
     private:
-        std::map<std::string, bool> m_fhStore;
+        std::set<std::string> m_createdFilenames;
     };
 
     class FileHandle {

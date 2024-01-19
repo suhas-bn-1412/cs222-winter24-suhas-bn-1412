@@ -22,14 +22,14 @@ namespace PeterDB {
             return -1;
         }
 
-        if (m_fhStore.end() != m_fhStore.find(fileName)) {
+        if (m_createdFilenames.end() != m_createdFilenames.find(fileName)) {
             ERROR("PagedFileManager::createFile - file '%s' already created", fileName.c_str());
             return -1;
         }
 
-        m_fhStore[fileName] = true;
+        m_createdFilenames.insert(fileName);
 
-        FILE* fstream = fopen(fileName.c_str(), "w+b");
+        FILE *fstream = fopen(fileName.c_str(), "w+b");
         if (nullptr == fstream) {
             ERROR("PagedFileManager::createFile - error while creating file '%s'", fileName.c_str());
             return -1;
@@ -44,10 +44,7 @@ namespace PeterDB {
     }
 
     RC PagedFileManager::destroyFile(const std::string &fileName) {
-        auto iter = m_fhStore.find(fileName);
-        if (iter != m_fhStore.end()) {
-            m_fhStore.erase(iter);
-        }
+        m_createdFilenames.erase(fileName);
 
         if (!file_exists(fileName)) {
             return -1;
@@ -90,7 +87,7 @@ namespace PeterDB {
         return m_fileName;
     }
 
-    void FileHandle::setFileName(const std::string& fileName) {
+    void FileHandle::setFileName(const std::string &fileName) {
         m_fileName = fileName;
     }
 
@@ -100,7 +97,7 @@ namespace PeterDB {
             return;
         }
 
-        void* data = malloc(PAGE_SIZE);
+        void *data = malloc(PAGE_SIZE);
         memset(data, 0, PAGE_SIZE);
 
         if (0 != fseek(m_fstream, 0, SEEK_SET)) {
@@ -112,21 +109,20 @@ namespace PeterDB {
             return;
         }
 
-        unsigned* metadata = (unsigned*)data;
+        unsigned *metadata = (unsigned *) data;
         if (metadata[0] == (metadata[1] ^ metadata[2] ^ metadata[3] ^ metadata[4])) {
             m_curPagesInFile = metadata[1];
             readPageCounter = metadata[2];
             writePageCounter = metadata[3];
             appendPageCounter = metadata[4];
-        }
-        else {
+        } else {
             writeMetadata();
         }
     }
 
     void FileHandle::writeMetadata() {
-        unsigned* data = (unsigned*)malloc(PAGE_SIZE);
-        memset((void*)data, 0, PAGE_SIZE);
+        unsigned *data = (unsigned *) malloc(PAGE_SIZE);
+        memset((void *) data, 0, PAGE_SIZE);
         data[1] = m_curPagesInFile;
         data[2] = readPageCounter;
         data[3] = writePageCounter;

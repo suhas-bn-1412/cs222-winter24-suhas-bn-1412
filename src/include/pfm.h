@@ -58,8 +58,8 @@ namespace PeterDB {
         RC closeFile();
 
     private:
-        void readMetadata();
-        void writeMetadata();
+        void loadMetadataFromDisk();
+        void writeMetadataToDisk();
         FILE* m_fstream = nullptr;
         std::string m_fileName = "";
         unsigned m_curPagesInFile = 0;

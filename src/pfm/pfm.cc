@@ -27,8 +27,6 @@ namespace PeterDB {
             return -1;
         }
 
-        m_createdFilenames.insert(fileName);
-
         FILE *fstream = fopen(fileName.c_str(), "w+b");
         if (nullptr == fstream) {
             ERROR("PagedFileManager::createFile - error while creating file '%s'", fileName.c_str());
@@ -40,6 +38,7 @@ namespace PeterDB {
             return -1;
         }
 
+        m_createdFilenames.insert(fileName);
         return 0;
     }
 
@@ -91,12 +90,7 @@ namespace PeterDB {
         m_fileName = fileName;
     }
 
-    void FileHandle::readMetadata() {
-        if (0 == file_size(m_fileName)) {
-            writeMetadata();
-            return;
-        }
-
+    void FileHandle::loadMetadataFromDisk() {
         void *data = malloc(PAGE_SIZE);
         memset(data, 0, PAGE_SIZE);
 
@@ -105,7 +99,7 @@ namespace PeterDB {
             return;
         }
         if (1 != fread(data, PAGE_SIZE, 1, m_fstream)) {
-            ERROR("error while reading metadata\n");
+            ERROR("Error while reading metadata\n");
             return;
         }
 
@@ -116,11 +110,11 @@ namespace PeterDB {
             writePageCounter = metadata[3];
             appendPageCounter = metadata[4];
         } else {
-            writeMetadata();
+            ERROR("Error while reading metadata\n");
         }
     }
 
-    void FileHandle::writeMetadata() {
+    void FileHandle::writeMetadataToDisk() {
         unsigned *data = (unsigned *) malloc(PAGE_SIZE);
         memset((void *) data, 0, PAGE_SIZE);
         data[1] = m_curPagesInFile;
@@ -150,7 +144,10 @@ namespace PeterDB {
             return -1;
         }
 
-        readMetadata();
+        if (0 == file_size(m_fileName)) {
+            writeMetadataToDisk();
+        }
+        loadMetadataFromDisk();
 
         return 0;
     }
@@ -160,7 +157,7 @@ namespace PeterDB {
             return 0;
         }
 
-        writeMetadata();
+        writeMetadataToDisk();
 
         if (0 != fclose(m_fstream)) {
             WARNING("FileHandle::closeFile - couldn't properly close the file '%s'", m_fileName);

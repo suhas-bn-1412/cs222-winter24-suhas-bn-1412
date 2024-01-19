@@ -139,6 +139,8 @@ namespace PeterDB {
         RecordBasedFileManager(const RecordBasedFileManager &);                     // Prevent construction by copying
         RecordBasedFileManager &operator=(const RecordBasedFileManager &);          // Prevent assignment
 
+    private:
+         PagedFileManager &pagedFileManager = PagedFileManager::instance();
     };
 
 } // namespace PeterDB

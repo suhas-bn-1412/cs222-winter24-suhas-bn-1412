@@ -1,4 +1,5 @@
 #include "src/include/pfm.h"
+#include "src/include/util.h"
 
 namespace PeterDB {
     PagedFileManager &PagedFileManager::instance() {
@@ -15,57 +16,58 @@ namespace PeterDB {
     PagedFileManager &PagedFileManager::operator=(const PagedFileManager &) = default;
 
     RC PagedFileManager::createFile(const std::string &fileName) {
-        /*
-         * check if the file is already present
-         * return error if present
-         *
-         * create file using fopen in a+ mode
-         * create file handle and set the fd, fname
-         *
-         * create metadata for the file. it just contains number of pages present
-         * write the metadata using filehandle.writepage (page num is 0)
-         *
-         * set fd as -1 before closing the file
-         * close the file (fclose)
-         */
-        return -1;
+        // check if the file with the same name is already present
+        if (file_exists(fileName)) {
+            ERROR("PagedFileManager::createFile - file '%s' already exists", fileName.c_str());
+            return -1;
+        }
+
+        if (m_createdFilenames.end() != m_createdFilenames.find(fileName)) {
+            ERROR("PagedFileManager::createFile - file '%s' already created", fileName.c_str());
+            return -1;
+        }
+
+        FILE *fstream = fopen(fileName.c_str(), "w+b");
+        if (nullptr == fstream) {
+            ERROR("PagedFileManager::createFile - error while creating file '%s'", fileName.c_str());
+            return -1;
+        }
+
+        if (0 != fclose(fstream)) {
+            ERROR("PagedFileManager::createFile - error while closing file '%s'", fileName.c_str());
+            return -1;
+        }
+
+        m_createdFilenames.insert(fileName);
+        return 0;
     }
 
     RC PagedFileManager::destroyFile(const std::string &fileName) {
-        /*
-         * check if the fh is present with us
-         * if not return error
-         *
-         * close the file if it's currently open
-         * delete the file using unlink
-         * call destructor of the fh
-         */
-        return -1;
+        m_createdFilenames.erase(fileName);
+
+        if (!file_exists(fileName)) {
+            return -1;
+        }
+        file_delete(fileName);
+        return 0;
     }
 
     RC PagedFileManager::openFile(const std::string &fileName, FileHandle &fileHandle) {
-        /*
-         * check if filename is present
-         *
-         * fetch the fh from the map
-         * using fopen open the file for rd/wr
-         * set the fd in fh
-         *
-         * return fh
-         */
-        return -1;
+        if (fileHandle.isActive()) {
+            ERROR("PagedFileManager::openFile - fileHandle is currently active");
+            return -1;
+        }
+
+        fileHandle.setFileName(fileName);
+        return fileHandle.openFile();
     }
 
     RC PagedFileManager::closeFile(FileHandle &fileHandle) {
-        /*
-         * check if file is present
-         *
-         * using fh, get the fd
-         * do fclose on fd
-         *
-         * set fd to -1
-         */
-        return -1;
+        if (!fileHandle.isActive()) {
+            ERROR("PagedFileManager::closeFile - fileHandle is not currently active");
+            return -1;
+        }
+        return fileHandle.closeFile();
     }
 
     FileHandle::FileHandle() {
@@ -76,36 +78,176 @@ namespace PeterDB {
 
     FileHandle::~FileHandle() = default;
 
+    bool FileHandle::isActive() {
+        return (nullptr != m_fstream);
+    }
+
+    std::string FileHandle::getFileName() {
+        return m_fileName;
+    }
+
+    void FileHandle::setFileName(const std::string &fileName) {
+        m_fileName = fileName;
+    }
+
+    void FileHandle::loadMetadataFromDisk() {
+        void *data = malloc(PAGE_SIZE);
+        memset(data, 0, PAGE_SIZE);
+
+        if (0 != fseek(m_fstream, 0, SEEK_SET)) {
+            ERROR("error while seeking to start of the file\n");
+            return;
+        }
+        if (1 != fread(data, PAGE_SIZE, 1, m_fstream)) {
+            ERROR("Error while reading metadata\n");
+            return;
+        }
+
+        unsigned *metadata = (unsigned *) data;
+        if (metadata[0] == (metadata[1] ^ metadata[2] ^ metadata[3] ^ metadata[4])) {
+            m_curPagesInFile = metadata[1];
+            readPageCounter = metadata[2];
+            writePageCounter = metadata[3];
+            appendPageCounter = metadata[4];
+        } else {
+            ERROR("Error while reading metadata\n");
+        }
+    }
+
+    void FileHandle::writeMetadataToDisk() {
+        unsigned *data = (unsigned *) malloc(PAGE_SIZE);
+        memset((void *) data, 0, PAGE_SIZE);
+        data[1] = m_curPagesInFile;
+        data[2] = readPageCounter;
+        data[3] = writePageCounter;
+        data[4] = appendPageCounter;
+
+        data[0] = (data[1] ^ data[2] ^ data[3] ^ data[4]);
+
+        if (0 != fseek(m_fstream, 0, SEEK_SET)) {
+            ERROR("error while seeking to start of the file\n");
+            return;
+        }
+        if (1 != fwrite(data, PAGE_SIZE, 1, m_fstream)) {
+            ERROR("error while writing metadata\n");
+            return;
+        }
+    }
+
+    RC FileHandle::openFile() {
+        assert(0 != m_fileName.length());
+        assert(nullptr == m_fstream);
+
+        m_fstream = fopen(m_fileName.c_str(), "r+b");
+        if (nullptr == m_fstream) {
+            ERROR("FileHandle::openFile - unable to open file '%s'", m_fileName);
+            return -1;
+        }
+
+        if (0 == file_size(m_fileName)) {
+            writeMetadataToDisk();
+        }
+        loadMetadataFromDisk();
+
+        return 0;
+    }
+
+    RC FileHandle::closeFile() {
+        if (nullptr == m_fstream) {
+            return 0;
+        }
+
+        writeMetadataToDisk();
+
+        if (0 != fclose(m_fstream)) {
+            WARNING("FileHandle::closeFile - couldn't properly close the file '%s'", m_fileName);
+        }
+        m_fstream = nullptr;
+
+        return 0;
+    }
+
     RC FileHandle::readPage(PageNum pageNum, void *data) {
-        /*
-         * fd is present, file is open
-         *
-         * using fseek move the file stream to point to that pagenum
-         * execute fread
-         */
-        return -1;
+        // pageNum should be less than the number of pages present
+        // pages are 0 indexed from user pov, so if pageNum is 0, then
+        // user is asking to read page 0, and totalPages might be 1
+        if (pageNum >= m_curPagesInFile) {
+            ERROR("FileHandle::readPage - page %d not found", pageNum);
+            return -1;
+        }
+
+        assert(nullptr != data);
+        assert(nullptr != m_fstream);
+
+        if (0 != fseek(m_fstream,
+                       PAGE_SIZE * (HIDDEN_PAGES + pageNum),
+                       SEEK_SET)) {
+            ERROR("FileHandle::readPage - error while trying to seek to page '%d' in file '%s'", pageNum, m_fileName);
+            return -1;
+        }
+
+        if (1 != fread(data, PAGE_SIZE, 1, m_fstream)) {
+            ERROR("FileHandle::readPage - error while reading '%d' page from file '%s'", pageNum, m_fileName);
+            return -1;
+        }
+
+        readPageCounter++;
+        return 0;
     }
 
     RC FileHandle::writePage(PageNum pageNum, const void *data) {
-        /*
-         * move to pagenum using fseek and execute fwrite
-         */
-        return -1;
+        assert(nullptr != data);
+        assert(nullptr != m_fstream);
+
+        if (pageNum >= m_curPagesInFile) {
+            ERROR("FileHandle::writePage - page %d not found", pageNum);
+            return -1;
+        }
+
+        if (0 != fseek(m_fstream,
+                       PAGE_SIZE * (HIDDEN_PAGES + pageNum),
+                       SEEK_SET)) {
+            ERROR("FileHandle::writePage - error while trying to seek to page '%d' in file '%s'", pageNum, m_fileName);
+            return -1;
+        }
+
+        if (1 != fwrite(data, PAGE_SIZE, 1, m_fstream)) {
+            ERROR("FileHandle::writePage - error while writing '%d' page from file '%s'", pageNum, m_fileName);
+            return -1;
+        }
+
+        writePageCounter++;
+        return 0;
     }
 
     RC FileHandle::appendPage(const void *data) {
-        /*
-         * move to end of file using fseek and write the data
-         */
-        return -1;
+        assert(nullptr != data);
+        assert(nullptr != m_fstream);
+
+        if (0 != fseek(m_fstream, 0, SEEK_END)) {
+            ERROR("FileHandle::appendPage - error while trying to seek to end of file '%s'", m_fileName);
+            return -1;
+        }
+
+        if (1 != fwrite(data, PAGE_SIZE, 1, m_fstream)) {
+            ERROR("FileHandle::appendPage - error while appending page to file '%s'", m_fileName);
+            return -1;
+        }
+
+        m_curPagesInFile++;
+        appendPageCounter++;
+        return 0;
     }
 
     unsigned FileHandle::getNumberOfPages() {
-        return -1;
+        return m_curPagesInFile;
     }
 
     RC FileHandle::collectCounterValues(unsigned &readPageCount, unsigned &writePageCount, unsigned &appendPageCount) {
-        return -1;
+        readPageCount = readPageCounter;
+        writePageCount = writePageCounter;
+        appendPageCount = appendPageCounter;
+        return 0;
     }
 
 } // namespace PeterDB

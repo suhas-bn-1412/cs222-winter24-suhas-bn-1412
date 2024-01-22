@@ -2,8 +2,10 @@
 #define _pfm_h_
 
 #define PAGE_SIZE 4096
+#define HIDDEN_PAGES 1
 
 #include <string>
+#include <set>
 
 namespace PeterDB {
 
@@ -27,6 +29,8 @@ namespace PeterDB {
         PagedFileManager(const PagedFileManager &);                         // Prevent construction by copying
         PagedFileManager &operator=(const PagedFileManager &);              // Prevent assignment
 
+    private:
+        std::set<std::string> m_createdFilenames;
     };
 
     class FileHandle {
@@ -45,6 +49,20 @@ namespace PeterDB {
         unsigned getNumberOfPages();                                        // Get the number of pages in the file
         RC collectCounterValues(unsigned &readPageCount, unsigned &writePageCount,
                                 unsigned &appendPageCount);                 // Put current counter values into variables
+
+        std::string getFileName();
+        void setFileName(const std::string& fileName);
+
+        bool isActive();
+        RC openFile();
+        RC closeFile();
+
+    private:
+        void loadMetadataFromDisk();
+        void writeMetadataToDisk();
+        FILE* m_fstream = nullptr;
+        std::string m_fileName = "";
+        unsigned m_curPagesInFile = 0;
     };
 
 } // namespace PeterDB

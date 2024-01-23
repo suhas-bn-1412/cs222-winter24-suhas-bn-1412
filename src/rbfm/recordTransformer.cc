@@ -266,7 +266,7 @@ void PeterDB::RecordTransformer::print(const std::vector<Attribute> &recordDescr
             }
         }
         else {
-            stream << "NULL, ";
+            stream << "NULL";
         }
         stream << ", ";
     }

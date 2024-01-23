@@ -9,10 +9,6 @@
 #define REAL_SZ 4
 #define VARCHAR_ATTR_SZ 4
 
-uint32_t PeterDB::RecordTransformer::getSerializedDataLength(const std::vector<Attribute> &recordDescriptor, const void *recordData) {
-    return serialize(recordDescriptor, recordData, nullptr);
-}
-
 inline bool isNthBitSet (unsigned char c, int n) {
     static unsigned char mask[] = {128, 64, 32, 16, 8, 4, 2, 1};
     return ((c & mask[n]) != 0);
@@ -79,8 +75,8 @@ uint32_t PeterDB::RecordTransformer::serialize(const std::vector<Attribute> &rec
         serializedDataPtr = (void *)((char*)serializedRecord + (ATTR_COUNT_FIELD_SZ + nullFlagSize + offsetSzInRecord));
 
     auto currAttr = 0;
-    bool isNull = false;
     uint32_t attrSize = 0;
+    bool isNull = false;
     void *dataPtr = (void*)((char*)recordData + nullFlagSize);
 
     for (auto attr : recordDescriptor) {
@@ -145,7 +141,77 @@ uint32_t PeterDB::RecordTransformer::serialize(const std::vector<Attribute> &rec
     return serializedDataSz;
 }
 
+<<<<<<< HEAD
 void
 PeterDB::RecordTransformer::deserialize(const std::vector<Attribute> &recordDescriptor, const void *serializedRecord, void* deserializedRecord) {
     //todo:
+=======
+void PeterDB::RecordTransformer::deserialize(const std::vector<Attribute> &recordDescriptor,
+                                             const void *serializedRecord,
+                                             void *recordData) {
+    uint16_t attrCount = recordDescriptor.size();
+
+    uint16_t nullFlagSize = attrCount % 8;
+    uint16_t offsetSzInRecord = attrCount * ATTR_OFFSET_SZ;
+
+    const uint16_t *attrOffsetData = nullptr;
+    attrOffsetData = (const uint16_t*)((const char*)serializedRecord + (ATTR_COUNT_FIELD_SZ + nullFlagSize));
+
+    // Read the nullflags
+    void *dataPtr = recordData;
+    memmove(dataPtr,
+            (const void*)((const char*)serializedRecord + ATTR_COUNT_FIELD_SZ),
+            nullFlagSize);
+
+    dataPtr = (void*)((char*)dataPtr + nullFlagSize);
+
+    auto currAttr = 0;
+    uint32_t attrStart = ATTR_COUNT_FIELD_SZ + nullFlagSize + offsetSzInRecord;
+    uint32_t attrEnd = attrStart;
+    uint32_t attrSize = 0;
+
+    for (auto attr : recordDescriptor) {
+        currAttr++;
+
+        // Read null flag and offset
+        bool isNull = isAttrNull(recordData, currAttr, attrCount);
+        attrEnd = attrOffsetData[currAttr-1];
+
+        if (!isNull) {
+
+            switch (attr.type) {
+                case TypeInt:
+                    assert(INT_SZ == (attrEnd-attrStart));
+
+                    memmove(dataPtr, (const void*)((const char*)serializedRecord + attrStart), INT_SZ);
+                    dataPtr = (void*)((char*)dataPtr + INT_SZ);
+
+                    break;
+
+                case TypeReal:
+                    assert(REAL_SZ == (attrEnd-attrStart));
+
+                    memmove(dataPtr, (const void*)((const char*)serializedRecord + attrStart), REAL_SZ);
+                    dataPtr = (void*)((char*)dataPtr + REAL_SZ);
+
+                    break;
+
+                case TypeVarChar:
+                    attrSize = attrEnd - attrStart;
+
+                    memmove(dataPtr, &attrSize, VARCHAR_ATTR_SZ);
+                    dataPtr = (void*)((char*)dataPtr + VARCHAR_ATTR_SZ);
+
+                    memmove(dataPtr, (const void*)((const char*)serializedRecord + attrStart), attrSize);
+                    dataPtr = (void*)((char*)dataPtr + attrSize);
+
+                    break;
+
+                default:
+                    continue;
+            }
+        }
+        attrStart = attrEnd;
+    }
+>>>>>>> d674142 (Added logic for deserialization of record)
 }

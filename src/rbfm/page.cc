@@ -33,12 +33,12 @@ namespace PeterDB {
         memcpy(recordStart, recordData, recordLengthBytes);
 
         // set the newly inserted record's slot metadata
+        setSlotCount(getSlotCount() + 1);
         setRecordOffset(recordOffset, slotNumber);
         setRecordLengthBytes(recordLengthBytes, slotNumber);
 
         // update the page's metadata
         setFreeByteCount(getFreeByteCount() - recordLengthBytes);
-        setSlotCount(getSlotCount() + 1);
         // RbfmUtil::INFO("Free bytes remaining in page=%ui", getFreeByteCount());
 
         return slotNumber;

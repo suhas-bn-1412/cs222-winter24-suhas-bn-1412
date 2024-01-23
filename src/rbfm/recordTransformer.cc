@@ -1,6 +1,7 @@
 #include "src/include/recordTransformer.h"
 
-#define ATTR_OFFSET_SZ sizeof(unsigned short)
+#define ATTR_COUNT_FIELD_SZ sizeof(uint16_t)
+#define ATTR_OFFSET_SZ sizeof(uint16_t)
 #define INT_SZ 4
 #define REAL_SZ 4
 #define VARCHAR_ATTR_SZ 4
@@ -31,46 +32,113 @@ uint32_t getVarcharAttrSize(void *data) {
     return *varcharSz;
 }
 
+void writeRecordMetadata(void *serializedRecord, uint16_t &attrCount,
+                         void *unserializedRecordData, uint16_t &nullFlagSize,
+                         uint16_t *attrOffsetsInRecord, uint16_t offsetSzInRecord) {
+    // write total number of attributes in the record
+    memmove(serializedRecord, &attrCount, ATTR_COUNT_FIELD_SZ);
+
+    // write the nullflags of all the attributes
+    memmove((void*)((char*)serializedRecord + ATTR_COUNT_FIELD_SZ),
+            unserializedRecordData, nullFlagSize);
+
+    // write the offset details of all the attributes
+    memmove((void*)((char*)serializedRecord + ATTR_COUNT_FIELD_SZ + nullFlagSize),
+            (void*)attrOffsetsInRecord, offsetSzInRecord);
+
+    return;
+}
+
 uint32_t PeterDB::RecordTransformer::serialize(const std::vector<Attribute> &recordDescriptor, void *recordData,
                                                void *serializedRecord) {
     uint16_t attCount = recordDescriptor.size();
-    uint16_t nullFlagSize = attrCount % 8;
-    uint16_t offSetSize = attrCount * ATTR_OFFSET_SZ;
-    uint32_t dataSize = nullFlagSize;
+    uint32_t serializedDataSz = 0;
 
-    auto attrNum = 0;
+    uint16_t nullFlagSize = attrCount % 8;
+    uint16_t offsetSzInRecord = attrCount * ATTR_OFFSET_SZ;
+    serializedDataSz += (nullFlagSize + offsetSzInRecord);
+
+    uint16_t *attrOffsetsInRecord = (uint16_t*)malloc(offsetSzInRecord);
+    assert(nullptr != attrOffsets);
+    memset(attrOffsets, 0, offsetSzInRecord);
+
+    bool serializeData = false;
+    if (nullptr != serializedRecord)
+        serializeData = true;
+    /*
+     * if we are serializing the data into the memory
+     * allocated by the caller, then move the serializedDataPtr
+     * by nullflagSize + offsetSzInRecord and the start copying
+     * the data into the serialized byte array
+     */
+    void *serializedDataPtr = nullptr;
+    if (serializeData)
+        serializedDataPtr = (void *)((char*)serializedRecord + (ATTR_COUNT_FIELD_SZ + nullflagSize + offsetSzInRecord));
+
+    auto currAttr = 0;
     bool isNull = false;
-    void *dataPtr = recordData + nullFlagSize;
+    void *dataPtr = (void*)((char*)recordData + nullFlagSize);
 
     for (auto attr : recordDescriptor) {
-        attrNum++;
-        isNull = isAttrNull(recordData, attrNum);
+        currAttr++;
 
+        isNull = isAttrNull(recordData, currAttr);
         if (!isNull) {
             switch (attr.AttrType) {
                 case TypeInt:
-                    dataSize += INT_SZ;
-                    dataPtr = dataPtr + INT_SZ;
-                    if (nullptr == serializedRecord) continue;
+                    if (serializeData) {
+                        memmove(serializedDataPtr, dataPtr, INT_SZ);
+                        serializedDataPtr = (void*)((char*)serializedDataPtr + INT_SZ);
+                    }
+
+                    serializedDataSz += INT_SZ;
+                    dataPtr = (void*)((char*)dataPtr + INT_SZ);
+
                 case TypeReal:
-                    dataSize += REAL_SZ;
-                    dataPtr = dataPtr + REAL_SZ;
-                    if (nullptr == serializedRecord) continue;
+                    if (serializeData) {
+                        memmove(serializedDataPtr, dataPtr, REAL_SZ);
+                        serializedDataPtr = (void*)((char*)serializedDataPtr + INT_SZ);
+                    }
+
+                    serializedDataSz += REAL_SZ;
+                    dataPtr = (void*)((char*)dataPtr + REAL_SZ);
+
                 case TypeVarChar:
                     uint32_t attrSize = getVarcharAttrSize(dataPtr);
-                    dataSize += attrSize;
+                    if (serializeData) {
+                        memmove(serializedDataPtr, (void*)((char*)dataPtr + VARCHAR_ATTR_SZ), attrSize);
+                        serializedDataPtr = (void*)((char*)serializedDataPtr + INT_SZ);
+                    }
 
                     // we have to move the data pointer past two data
                     // one is the data which contains size of the varchar attribute
                     // other is the actual varchar data
-                    dataPtr = dataPtr + (attrSize + VARCHAR_ATTR_SZ);
-                    if (nullptr == serializedRecord) continue;
+                    //
+                    // but serializedDataSize only moves by how much
+                    // ever data is coppied to the serialized data
+                    serializedDataSz += attrSize;
+                    dataPtr = (void*)((char*)dataPtr + (attrSize + VARCHAR_ATTR_SZ));
+
                 default:
                     continue;
             }
         }
+
+        attrOffsetsInRecord[currAttr-1] = serializedDataSz;
     }
-    return dataSize;
+
+    if (serializeData) {
+        /* copy the record metadata to the starting of
+         * the record. i,e number of attr, their null flags,
+         * and their offsets
+         */
+        writeRecordMetadata(serializedRecord, totalCount,
+                            recordData, nullFlagSize,
+                            (void*)attrOffsetsInRecord, offsetSzInRecord);
+    }
+
+    free(attrOffsetsInRecord);
+    return serializedDataSz;
 }
 
 void

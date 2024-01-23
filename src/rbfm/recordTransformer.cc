@@ -1,4 +1,7 @@
 #include "src/include/recordTransformer.h"
+#include "src/include/util.h"
+
+#include <string.h>
 
 #define ATTR_COUNT_FIELD_SZ sizeof(uint16_t)
 #define ATTR_OFFSET_SZ sizeof(uint16_t)
@@ -7,7 +10,7 @@
 #define VARCHAR_ATTR_SZ 4
 
 uint32_t PeterDB::RecordTransformer::getSerializedDataLength(const std::vector<Attribute> &recordDescriptor, const void *recordData) {
-    return serialize(recordDescriptor, nullptr);
+    return serialize(recordDescriptor, recordData, nullptr);
 }
 
 inline bool isNthBitSet (unsigned char c, int n) {
@@ -22,7 +25,7 @@ bool isAttrNull(const void *recordData, const uint16_t &attrNum, const uint16_t 
     uint16_t r = (attrNum-1) % totalCount;
 
     void *flag_ptr = (void*)((char*)recordData + q);
-    return isNthBitSet((unsigned char)flag_ptr, r);
+    return isNthBitSet(*((unsigned char*)flag_ptr), r);
 }
 
 uint32_t getVarcharAttrSize(void *data) {
@@ -51,7 +54,7 @@ void writeRecordMetadata(void *serializedRecord, uint16_t &attrCount,
 
 uint32_t PeterDB::RecordTransformer::serialize(const std::vector<Attribute> &recordDescriptor, void *recordData,
                                                void *serializedRecord) {
-    uint16_t attCount = recordDescriptor.size();
+    uint16_t attrCount = recordDescriptor.size();
     uint32_t serializedDataSz = 0;
 
     uint16_t nullFlagSize = attrCount % 8;
@@ -59,8 +62,8 @@ uint32_t PeterDB::RecordTransformer::serialize(const std::vector<Attribute> &rec
     serializedDataSz += (nullFlagSize + offsetSzInRecord);
 
     uint16_t *attrOffsetsInRecord = (uint16_t*)malloc(offsetSzInRecord);
-    assert(nullptr != attrOffsets);
-    memset(attrOffsets, 0, offsetSzInRecord);
+    assert(nullptr != attrOffsetsInRecord);
+    memset(attrOffsetsInRecord, 0, offsetSzInRecord);
 
     bool serializeData = false;
     if (nullptr != serializedRecord)
@@ -73,18 +76,19 @@ uint32_t PeterDB::RecordTransformer::serialize(const std::vector<Attribute> &rec
      */
     void *serializedDataPtr = nullptr;
     if (serializeData)
-        serializedDataPtr = (void *)((char*)serializedRecord + (ATTR_COUNT_FIELD_SZ + nullflagSize + offsetSzInRecord));
+        serializedDataPtr = (void *)((char*)serializedRecord + (ATTR_COUNT_FIELD_SZ + nullFlagSize + offsetSzInRecord));
 
     auto currAttr = 0;
     bool isNull = false;
+    uint32_t attrSize = 0;
     void *dataPtr = (void*)((char*)recordData + nullFlagSize);
 
     for (auto attr : recordDescriptor) {
         currAttr++;
 
-        isNull = isAttrNull(recordData, currAttr);
+        isNull = isAttrNull(recordData, currAttr, attrCount);
         if (!isNull) {
-            switch (attr.AttrType) {
+            switch (attr.type) {
                 case TypeInt:
                     if (serializeData) {
                         memmove(serializedDataPtr, dataPtr, INT_SZ);
@@ -104,7 +108,7 @@ uint32_t PeterDB::RecordTransformer::serialize(const std::vector<Attribute> &rec
                     dataPtr = (void*)((char*)dataPtr + REAL_SZ);
 
                 case TypeVarChar:
-                    uint32_t attrSize = getVarcharAttrSize(dataPtr);
+                    attrSize = getVarcharAttrSize(dataPtr);
                     if (serializeData) {
                         memmove(serializedDataPtr, (void*)((char*)dataPtr + VARCHAR_ATTR_SZ), attrSize);
                         serializedDataPtr = (void*)((char*)serializedDataPtr + INT_SZ);
@@ -132,9 +136,9 @@ uint32_t PeterDB::RecordTransformer::serialize(const std::vector<Attribute> &rec
          * the record. i,e number of attr, their null flags,
          * and their offsets
          */
-        writeRecordMetadata(serializedRecord, totalCount,
+        writeRecordMetadata(serializedRecord, attrCount,
                             recordData, nullFlagSize,
-                            (void*)attrOffsetsInRecord, offsetSzInRecord);
+                            attrOffsetsInRecord, offsetSzInRecord);
     }
 
     free(attrOffsetsInRecord);

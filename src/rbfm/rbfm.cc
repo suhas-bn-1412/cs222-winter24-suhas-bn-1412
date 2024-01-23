@@ -19,22 +19,22 @@ namespace PeterDB {
 //    RecordBasedFileManager &RecordBasedFileManager::operator=(const RecordBasedFileManager &) = default;
 
     RC RecordBasedFileManager::createFile(const std::string &fileName) {
-        pagedFileManager.createFile(fileName);
-        return 0;
+        // return pagedFileManager.createFile(fileName);
+        return -1;
     }
 
     RC RecordBasedFileManager::destroyFile(const std::string &fileName) {
-        pagedFileManager.destroyFile(fileName);
+        // return pagedFileManager.destroyFile(fileName);
         return -1;
     }
 
     RC RecordBasedFileManager::openFile(const std::string &fileName, FileHandle &fileHandle) {
-        pagedFileManager.openFile(fileName, fileHandle);
+        // return pagedFileManager.openFile(fileName, fileHandle);
         return -1;
     }
 
     RC RecordBasedFileManager::closeFile(FileHandle &fileHandle) {
-        pagedFileManager.closeFile(fileHandle);
+        // return pagedFileManager.closeFile(fileHandle);
         return -1;
     }
 

@@ -4,6 +4,7 @@
 #define PAGE_SIZE 4096 //todo: consolidate with pfm's definition
 #define PAGE_METADATA_SIZE sizeof(unsigned short) * 2
 #define SLOT_METADATA_SIZE sizeof(unsigned short) * 2
+#define FIRST_RECORD_OFFSET 0
 
 #include <cstdlib>
 
@@ -21,24 +22,33 @@ namespace PeterDB {
 
         bool canInsertRecord(unsigned short recordLengthBytes);
 
-        short insertRecord(void *data, unsigned short length);
+        unsigned short insertRecord(void *recordData, unsigned short recordLengthBytes);
 
         void readRecord(unsigned short slotNumber, void* data);
 
     private:
-
-        byte *m_date = new byte[PAGE_SIZE];
-        unsigned short* freeByteCount = (unsigned short *) (m_date + PAGE_SIZE) - 1;
-        unsigned short* slotCount = (unsigned short *) (m_date + PAGE_SIZE) - 2;
-        unsigned short *slotMetadataTail = (unsigned short *) (m_date + PAGE_SIZE) - PAGE_METADATA_SIZE;
+        byte *m_data = new byte[PAGE_SIZE];
+        unsigned short* freeByteCount = (unsigned short *) (m_data + PAGE_SIZE) - 1;
+        unsigned short* slotCount = (unsigned short *) (m_data + PAGE_SIZE) - 2;
+        unsigned short *tailSlotMetadata = (unsigned short *) (m_data + PAGE_SIZE) - PAGE_METADATA_SIZE - SLOT_METADATA_SIZE;
 
         unsigned short getFreeByteCount();
 
         unsigned short getSlotCount();
 
+        unsigned short computeRecordOffset(unsigned short slotNumber);
+
+        unsigned short getRecordOffset(unsigned short slotNumber);
+
+        unsigned short getRecordLengthBytes(unsigned short slotNumber);
+
         void setFreeByteCount(unsigned short numBytesFree);
 
         void setSlotCount(unsigned short numSlotsInPage);
+
+        void setRecordOffset(unsigned short recordOffset, unsigned short slotNumber);
+
+        void setRecordLengthBytes(unsigned short recordLengthBytes, unsigned short slotNumber);
     };
 }
 

@@ -25,11 +25,10 @@ bool isAttrNull(const void *recordData, const uint16_t &attrNum, const uint16_t 
     return isNthBitSet(*((unsigned char*)flag_ptr), r);
 }
 
-uint32_t getVarcharAttrSize(void *data) {
+uint32_t getVarcharAttrSize(const void *data) {
     assert(nullptr != data);
 
-    uint32_t *varcharSz = (uint32_t*)data;
-    return *varcharSz;
+    return *((const uint32_t*)data);
 }
 
 void writeRecordMetadata(void *serializedRecord, uint16_t &attrCount,
@@ -57,7 +56,7 @@ uint32_t PeterDB::RecordTransformer::serialize(const std::vector<Attribute> &rec
 
     uint16_t nullFlagSize = (attrCount + 7) / 8;
     uint16_t offsetSzInRecord = attrCount * ATTR_OFFSET_SZ;
-    serializedDataSz += (nullFlagSize + offsetSzInRecord);
+    serializedDataSz += (ATTR_OFFSET_SZ + nullFlagSize + offsetSzInRecord);
 
     uint16_t *attrOffsetsInRecord = (uint16_t*)malloc(offsetSzInRecord);
     assert(nullptr != attrOffsetsInRecord);
@@ -74,7 +73,7 @@ uint32_t PeterDB::RecordTransformer::serialize(const std::vector<Attribute> &rec
      */
     void *serializedDataPtr = nullptr;
     if (serializeData)
-        serializedDataPtr = (void *)((char*)serializedRecord + (ATTR_COUNT_FIELD_SZ + nullFlagSize + offsetSzInRecord));
+        serializedDataPtr = (void *)((char*)serializedRecord + serializedDataSz);
 
     auto currAttr = 0;
     uint32_t attrSize = 0;
@@ -110,9 +109,11 @@ uint32_t PeterDB::RecordTransformer::serialize(const std::vector<Attribute> &rec
                     break;
 
                 case TypeVarChar:
-                    attrSize = getVarcharAttrSize(dataPtr);
+                    attrSize = *((uint32_t*)dataPtr);
+                    dataPtr = (void*)((char*)dataPtr + VARCHAR_ATTR_SZ);
+
                     if (serializeData) {
-                        memmove(serializedDataPtr, (void*)((char*)dataPtr + VARCHAR_ATTR_SZ), attrSize);
+                        memmove(serializedDataPtr, dataPtr, attrSize);
                         serializedDataPtr = (void*)((char*)serializedDataPtr + attrSize);
                     }
 
@@ -123,7 +124,7 @@ uint32_t PeterDB::RecordTransformer::serialize(const std::vector<Attribute> &rec
                     // but serializedDataSize only moves by how much
                     // ever data is coppied to the serialized data
                     serializedDataSz += attrSize;
-                    dataPtr = (void*)((char*)dataPtr + (attrSize + VARCHAR_ATTR_SZ));
+                    dataPtr = (void*)((char*)dataPtr + attrSize);
 
                     break;
 
@@ -253,7 +254,7 @@ void PeterDB::RecordTransformer::print(const std::vector<Attribute> &recordDescr
                     break;
 
                 case TypeVarChar:
-                    attrSize = getVarcharAttrSize(dataPtr);
+                    attrSize = *((uint32_t*)dataPtr);
                     // stream << """;
                     stream.write((const char*)((char*)dataPtr + VARCHAR_ATTR_SZ), attrSize);
                     // stream << """;

@@ -14,6 +14,10 @@ namespace PeterDB {
         static void deserialize(const std::vector<Attribute> &recordDescriptor,
                                 const void *serializedRecord,
                                 void *recordData);
+
+        static void print(const std::vector<Attribute> &recordDescriptor,
+                          const void *recordData,
+                          std::ostream &stream);
     };
 }
 

@@ -2,6 +2,7 @@
 
 #include <assert.h>
 #include <string.h>
+#include <sstream>
 
 #define ATTR_COUNT_FIELD_SZ sizeof(uint16_t)
 #define ATTR_OFFSET_SZ sizeof(uint16_t)
@@ -54,7 +55,7 @@ uint32_t PeterDB::RecordTransformer::serialize(const std::vector<Attribute> &rec
     uint16_t attrCount = recordDescriptor.size();
     uint32_t serializedDataSz = 0;
 
-    uint16_t nullFlagSize = attrCount % 8;
+    uint16_t nullFlagSize = (attrCount + 7) / 8;
     uint16_t offsetSzInRecord = attrCount * ATTR_OFFSET_SZ;
     serializedDataSz += (nullFlagSize + offsetSzInRecord);
 
@@ -95,20 +96,24 @@ uint32_t PeterDB::RecordTransformer::serialize(const std::vector<Attribute> &rec
                     serializedDataSz += INT_SZ;
                     dataPtr = (void*)((char*)dataPtr + INT_SZ);
 
+                    break;
+
                 case TypeReal:
                     if (serializeData) {
                         memmove(serializedDataPtr, dataPtr, REAL_SZ);
-                        serializedDataPtr = (void*)((char*)serializedDataPtr + INT_SZ);
+                        serializedDataPtr = (void*)((char*)serializedDataPtr + REAL_SZ);
                     }
 
                     serializedDataSz += REAL_SZ;
                     dataPtr = (void*)((char*)dataPtr + REAL_SZ);
 
+                    break;
+
                 case TypeVarChar:
                     attrSize = getVarcharAttrSize(dataPtr);
                     if (serializeData) {
                         memmove(serializedDataPtr, (void*)((char*)dataPtr + VARCHAR_ATTR_SZ), attrSize);
-                        serializedDataPtr = (void*)((char*)serializedDataPtr + INT_SZ);
+                        serializedDataPtr = (void*)((char*)serializedDataPtr + attrSize);
                     }
 
                     // we have to move the data pointer past two data
@@ -119,6 +124,8 @@ uint32_t PeterDB::RecordTransformer::serialize(const std::vector<Attribute> &rec
                     // ever data is coppied to the serialized data
                     serializedDataSz += attrSize;
                     dataPtr = (void*)((char*)dataPtr + (attrSize + VARCHAR_ATTR_SZ));
+
+                    break;
 
                 default:
                     continue;
@@ -147,7 +154,7 @@ void PeterDB::RecordTransformer::deserialize(const std::vector<Attribute> &recor
                                              void *recordData) {
     uint16_t attrCount = recordDescriptor.size();
 
-    uint16_t nullFlagSize = attrCount % 8;
+    uint16_t nullFlagSize = (attrCount + 7) / 8;
     uint16_t offsetSzInRecord = attrCount * ATTR_OFFSET_SZ;
 
     const uint16_t *attrOffsetData = nullptr;
@@ -208,5 +215,65 @@ void PeterDB::RecordTransformer::deserialize(const std::vector<Attribute> &recor
             }
         }
         attrStart = attrEnd;
+    }
+}
+
+void PeterDB::RecordTransformer::print(const std::vector<Attribute> &recordDescriptor,
+                                       const void *recordData,
+                                       std::ostream &out) {
+
+    std::stringstream stream;
+    uint16_t attrCount = recordDescriptor.size();
+    uint16_t nullFlagSize = (attrCount + 7) / 8;
+
+
+    auto currAttr = 0;
+    uint32_t attrSize = 0;
+    bool isNull = false;
+    void *dataPtr = (void*)((char*)recordData + nullFlagSize);
+
+    for (auto attr : recordDescriptor) {
+        currAttr++;
+
+        stream << attr.name << ": ";
+
+        isNull = isAttrNull(recordData, currAttr, attrCount);
+        if (!isNull) {
+            switch (attr.type) {
+                case TypeInt:
+                    stream << *((int*)dataPtr);
+                    dataPtr = (void*)((char*)dataPtr + INT_SZ);
+                    
+                    break;
+
+                case TypeReal:
+                    stream << *((float*)dataPtr);
+                    dataPtr = (void*)((char*)dataPtr + REAL_SZ);
+
+                    break;
+
+                case TypeVarChar:
+                    attrSize = getVarcharAttrSize(dataPtr);
+                    // stream << """;
+                    stream.write((const char*)((char*)dataPtr + VARCHAR_ATTR_SZ), attrSize);
+                    // stream << """;
+                    dataPtr = (void*)((char*)dataPtr + (attrSize + VARCHAR_ATTR_SZ));
+
+                    break;
+
+                default:
+                    continue;
+            }
+        }
+        else {
+            stream << "NULL, ";
+        }
+        stream << ", ";
+    }
+
+    std::string result = stream.str();
+    if (!result.empty()) {
+        result = result.substr(0, result.size()-2);
+        out << result;
     }
 }

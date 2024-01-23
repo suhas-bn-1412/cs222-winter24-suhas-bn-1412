@@ -99,17 +99,18 @@ namespace PeterDB {
         return 0;
     }
 
+    RC RecordBasedFileManager::printRecord(const std::vector<Attribute> &recordDescriptor, const void *data,
+                                           std::ostream &out) {
+        RecordTransformer::print(recordDescriptor, data, out);
+        return 0;
+    }
+
     /*
      * End of CS222 Project1 impl
      */
 
     RC RecordBasedFileManager::deleteRecord(FileHandle &fileHandle, const std::vector<Attribute> &recordDescriptor,
                                             const RID &rid) {
-        return -1;
-    }
-
-    RC RecordBasedFileManager::printRecord(const std::vector<Attribute> &recordDescriptor, const void *data,
-                                           std::ostream &out) {
         return -1;
     }
 

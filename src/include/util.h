@@ -41,21 +41,20 @@ void trace(const char* level, const char* format, va_list& args) {
 void INFO(const char* format, ...) {
     va_list args;
     va_start(args, format);
-    // trace("INFO   ", format, args);
+    trace("INFO   ", format, args);
     va_end(args);
 }
 
 void ERROR(const char* format, ...) {
     va_list args;
     va_start(args, format);
-    // trace("ERROR  ", format, args);
-    vfprintf(stderr, format, args);
+    trace("ERROR  ", format, args);
     va_end(args);
 }
 
 void WARNING(const char* format, ...) {
     va_list args;
     va_start(args, format);
-    // trace("WARNING", format, args);
+    trace("WARNING", format, args);
     va_end(args);
 }

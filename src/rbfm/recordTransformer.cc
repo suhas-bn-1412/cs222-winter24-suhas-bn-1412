@@ -1,6 +1,6 @@
 #include "src/include/recordTransformer.h"
-#include "src/include/util.h"
 
+#include <assert.h>
 #include <string.h>
 
 #define ATTR_COUNT_FIELD_SZ sizeof(uint16_t)

@@ -1,5 +1,7 @@
 #include "src/include/page.h"
-#include "src/include/util.h"
+
+#include <assert.h>
+#include <string.h>
 
 namespace PeterDB {
     Page::Page() {
@@ -19,14 +21,14 @@ namespace PeterDB {
 
     unsigned short Page::insertRecord(void *recordData, unsigned short recordLengthBytes) {
         if (!canInsertRecord(recordLengthBytes)) {
-            ERROR("Cannot insert record. Insufficient free space in page.");
+            // RbfmUtil::ERROR("Cannot insert record. Insufficient free space in page.");
             return -1;
         }
 
         // insert the record data into the page
         unsigned short slotNumber = getSlotCount();
         unsigned short recordOffset = computeRecordOffset(slotNumber);
-        INFO("Inserting record at slot=%ui, offset=%ui", slotNumber, recordOffset);
+        // RbfmUtil::INFO("Inserting record at slot=%ui, offset=%ui", slotNumber, recordOffset);
         byte *recordStart = m_data + recordOffset;
         memcpy(recordStart, recordData, recordLengthBytes);
 
@@ -37,7 +39,7 @@ namespace PeterDB {
         // update the page's metadata
         setFreeByteCount(getFreeByteCount() - recordLengthBytes);
         setSlotCount(getSlotCount() + 1);
-        INFO("Free bytes remaining in page=%ui", getFreeByteCount());
+        // RbfmUtil::INFO("Free bytes remaining in page=%ui", getFreeByteCount());
 
         return slotNumber;
     }
@@ -46,7 +48,7 @@ namespace PeterDB {
         assert(slotNumber >= 0 && slotNumber < getSlotCount());
         unsigned short recordOffset = getRecordOffset(slotNumber);
         unsigned short recordLengthBytes = getRecordLengthBytes(slotNumber);
-        INFO("Reading record from slotNum=%ui: offset=%ui, length=%ui", slotNumber, recordOffset, recordLengthBytes);
+        // RbfmUtil::INFO("Reading record from slotNum=%ui: offset=%ui, length=%ui", slotNumber, recordOffset, recordLengthBytes);
         void *recordDataStart = (void*) (m_data + recordOffset);
         memcpy(data, recordDataStart, recordLengthBytes);
     }

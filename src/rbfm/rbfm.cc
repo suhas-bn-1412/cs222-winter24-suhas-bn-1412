@@ -1,7 +1,6 @@
 #include "src/include/rbfm.h"
 #include "src/include/page.h"
 #include "src/include/recordTransformer.h"
-#include "src/include/util.h"
 
 #include <assert.h>
 
@@ -19,8 +18,7 @@ namespace PeterDB {
 
     RecordBasedFileManager::RecordBasedFileManager(const RecordBasedFileManager &) = default;
 
-    //todo: fix compile error
-//    RecordBasedFileManager &RecordBasedFileManager::operator=(const RecordBasedFileManager &) = default;
+    RecordBasedFileManager &RecordBasedFileManager::operator=(const RecordBasedFileManager &) = default;
 
     RC RecordBasedFileManager::createFile(const std::string &fileName) {
         return m_pagedFileManager->createFile(fileName);
@@ -55,9 +53,7 @@ namespace PeterDB {
         //      b. create (append to file) a new page if needed
 
         PageNum pageNum;
-        INFO("Determining page number for new record insertion");
         if (fileHandle.getNumberOfPages() == 0) {
-            INFO("No pages found in file. Appending new page");
             pageNum = 0;
             Page *page = new Page();
             fileHandle.appendPage(page->getDataPtr());
@@ -71,14 +67,12 @@ namespace PeterDB {
             }
         }
 
-        INFO("Page number = %ui", pageNum);
         Page *page = new Page(); //todo: try to reuse from before
         fileHandle.readPage(pageNum, page->getDataPtr());
         unsigned short slotNum = page->insertRecord(serializedRecord, serializedRecordLength);
         rid.pageNum = pageNum;
         rid.slotNum = slotNum;
         fileHandle.writePage(pageNum, page->getDataPtr());
-        INFO("Inserted record into page=%ui, slot=%us", pageNum, slotNum);
 
         free(serializedRecord);
         return 0;

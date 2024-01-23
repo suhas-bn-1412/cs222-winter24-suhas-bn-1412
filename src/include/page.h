@@ -24,6 +24,8 @@ namespace PeterDB {
 
         unsigned short insertRecord(void *recordData, unsigned short recordLengthBytes);
 
+        unsigned short getRecordLengthBytes(unsigned short slotNumber);
+
         void readRecord(unsigned short slotNumber, void* data);
 
     private:
@@ -39,8 +41,6 @@ namespace PeterDB {
         unsigned short computeRecordOffset(unsigned short slotNumber);
 
         unsigned short getRecordOffset(unsigned short slotNumber);
-
-        unsigned short getRecordLengthBytes(unsigned short slotNumber);
 
         void setFreeByteCount(unsigned short numBytesFree);
 

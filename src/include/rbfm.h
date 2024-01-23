@@ -5,6 +5,7 @@
 
 #include "pfm.h"
 
+
 namespace PeterDB {
     // Record ID
     typedef struct {
@@ -36,6 +37,7 @@ namespace PeterDB {
         NO_OP       // no condition
     } CompOp;
 
+    typedef unsigned char byte;
 
     /********************************************************************
     * The scan iterator is NOT required to be implemented for Project 1 *

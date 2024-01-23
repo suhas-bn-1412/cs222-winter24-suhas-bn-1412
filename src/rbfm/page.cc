@@ -11,33 +11,44 @@ namespace PeterDB {
         setSlotCount(0);
     }
 
+    bool Page::canInsertRecord(unsigned short recordLengthBytes) {
+        // account for the new slot metadata that we need to write after inserting a new record
+        unsigned short availableBytes = getFreeByteCount() - SLOT_METADATA_SIZE;
+        return availableBytes >= recordLengthBytes;
+    }
+
     unsigned short Page::insertRecord(void *recordData, unsigned short recordLengthBytes) {
         if (!canInsertRecord(recordLengthBytes)) {
             ERROR("Cannot insert record. Insufficient free space in page.");
             return -1;
         }
 
+        // insert the record data into the page
         unsigned short slotNumber = getSlotCount();
         unsigned short recordOffset = computeRecordOffset(slotNumber);
+        INFO("Inserting record at slot=%ui, offset=%ui", slotNumber, recordOffset);
         byte *recordStart = m_data + recordOffset;
         memcpy(recordStart, recordData, recordLengthBytes);
 
+        // set the newly inserted record's slot metadata
         setRecordOffset(recordOffset, slotNumber);
         setRecordLengthBytes(recordLengthBytes, slotNumber);
 
+        // update the page's metadata
         setFreeByteCount(getFreeByteCount() - recordLengthBytes);
         setSlotCount(getSlotCount() + 1);
+        INFO("Free bytes remaining in page=%ui", getFreeByteCount());
 
         return slotNumber;
     }
 
     void Page::readRecord(unsigned short slotNumber, void *data) {
-        //todo:
-    }
-
-    bool Page::canInsertRecord(unsigned short recordLengthBytes) {
-        unsigned short availableBytes = getFreeByteCount() - SLOT_METADATA_SIZE;
-        return availableBytes >= recordLengthBytes;
+        assert(slotNumber >= 0 && slotNumber < getSlotCount());
+        unsigned short recordOffset = getRecordOffset(slotNumber);
+        unsigned short recordLengthBytes = getRecordLengthBytes(slotNumber);
+        INFO("Reading record from slotNum=%ui: offset=%ui, length=%ui", slotNumber, recordOffset, recordLengthBytes);
+        void *recordDataStart = (void*) (m_data + recordOffset);
+        memcpy(data, recordDataStart, recordLengthBytes);
     }
 
     unsigned short Page::getFreeByteCount() {
@@ -92,6 +103,4 @@ namespace PeterDB {
         unsigned short *recordLengthBytesPtr = tailSlotMetadata - (SLOT_METADATA_SIZE * slotNumber) + 1;
         *recordLengthBytesPtr = recordLengthBytes;
     }
-
-
 }

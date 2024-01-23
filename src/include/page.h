@@ -2,11 +2,12 @@
 #define _page_h_
 
 #define PAGE_SIZE 4096 //todo: consolidate with pfm's definition
+#define PAGE_METADATA_SIZE sizeof(unsigned short) * 2
 #define SLOT_METADATA_SIZE sizeof(unsigned short) * 2
 
 #include <cstdlib>
 
-typedef char byte;
+typedef unsigned char byte;
 
 namespace PeterDB {
     class Page {
@@ -14,31 +15,30 @@ namespace PeterDB {
     public:
         Page();
 
-        void *init(); // used to create an (initially) zero records page.
+        void initPageMetadata(); // used to create an (initially) zero records page.
 
-        void init(void* data); // used when page data is read from file.
+        void* getDataPtr();
 
-        void teardown();
-
-        unsigned short getFreeByteCount();
+        bool canInsertRecord(unsigned short recordLengthBytes);
 
         short insertRecord(void *data, unsigned short length);
 
-        void *readRecord(unsigned short slotNumber);
+        void readRecord(unsigned short slotNumber, void* data);
 
     private:
-        byte *m_data_head;
-        unsigned short *freeByteCountPtr;
-        unsigned short *recordCountPtr;
-        unsigned short *slotMetadataTailPtr;
 
-        void initMetadataPtrs();
+        byte *m_date = new byte[PAGE_SIZE];
+        unsigned short* freeByteCount = (unsigned short *) (m_date + PAGE_SIZE) - 1;
+        unsigned short* slotCount = (unsigned short *) (m_date + PAGE_SIZE) - 2;
+        unsigned short *slotMetadataTail = (unsigned short *) (m_date + PAGE_SIZE) - PAGE_METADATA_SIZE;
 
-        void setFreeByteCount(unsigned short freeByteCount);
+        unsigned short getFreeByteCount();
 
-        unsigned short getRecordCount();
+        unsigned short getSlotCount();
 
-        void setRecordCount(unsigned short recordCount);
+        void setFreeByteCount(unsigned short numBytesFree);
+
+        void setSlotCount(unsigned short numSlotsInPage);
     };
 }
 

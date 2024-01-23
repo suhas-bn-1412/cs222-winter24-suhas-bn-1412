@@ -3,61 +3,50 @@
 
 namespace PeterDB {
     Page::Page() {
+        initPageMetadata();
     }
 
-    void Page::init(void *data) {
-        m_data_head = (byte *) data;
-        initMetadataPtrs();
-    }
-
-    void *Page::init() {
-        m_data_head = (byte *) malloc(PAGE_SIZE);
-        initMetadataPtrs();
-        setRecordCount(0);
-        setFreeByteCount(PAGE_SIZE - (2 * sizeof(unsigned short)));
-        return m_data_head;
-    }
-
-    void Page::teardown() {
-        free(m_data_head);
+    void Page::initPageMetadata() {
+        setFreeByteCount(PAGE_SIZE - PAGE_METADATA_SIZE);
+        setSlotCount(0);
     }
 
     short Page::insertRecord(void *data, unsigned short length) {
-        if (getFreeByteCount() < length) {
+        //todo
+        if (!canInsertRecord(length)) {
             ERROR("Cannot insert record. Insufficient free space in page.");
             return -1;
         }
 
-        unsigned short *slotMetadataHeadPtr = slotMetadataTailPtr - getRecordCount();
-
         return 0;
     }
 
-    void *Page::readRecord(unsigned short slotNumber) {
-        // todo
-        return nullptr;
+    void Page::readRecord(unsigned short slotNumber, void *data) {
+        //todo:
     }
 
     unsigned short Page::getFreeByteCount() {
-        return *freeByteCountPtr;
+        return *freeByteCount;
     }
 
-    void Page::setFreeByteCount(unsigned short freeByteCount) {
-        *freeByteCountPtr = freeByteCount;
+    void Page::setFreeByteCount(unsigned short numBytesFree) {
+        *freeByteCount = numBytesFree;
     }
 
-    unsigned short Page::getRecordCount() {
-        return *recordCountPtr;
+    unsigned short Page::getSlotCount() {
+        return *slotCount;
     }
 
-    void Page::setRecordCount(unsigned short recordCount) {
-        *recordCountPtr = recordCount;
+    void Page::setSlotCount(unsigned short numSlotsInPage) {
+        *slotCount = numSlotsInPage;
     }
 
-    void Page::initMetadataPtrs() {
-        freeByteCountPtr = (unsigned short *) (m_data_head + PAGE_SIZE) - 1;
-        recordCountPtr = (unsigned short *) (m_data_head + PAGE_SIZE) - 2;
-        slotMetadataTailPtr = (unsigned short *) (m_data_head + PAGE_SIZE) - 2 - SLOT_METADATA_SIZE;
+    void *Page::getDataPtr() {
+        return (void *) m_date;
+    }
+
+    bool Page::canInsertRecord(unsigned short recordLengthBytes) {
+        unsigned short availableBytes = getFreeByteCount() - SLOT_METADATA_SIZE;
+        return availableBytes >= recordLengthBytes;
     }
 }
-

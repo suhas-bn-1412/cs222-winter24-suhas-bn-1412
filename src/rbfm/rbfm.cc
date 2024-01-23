@@ -3,9 +3,13 @@
 #include "src/include/recordTransformer.h"
 #include "src/include/util.h"
 
+#include <assert.h>
+
 namespace PeterDB {
+
     RecordBasedFileManager &RecordBasedFileManager::instance() {
         static RecordBasedFileManager _rbf_manager = RecordBasedFileManager();
+        _rbf_manager.m_pagedFileManager = &PagedFileManager::instance();
         return _rbf_manager;
     }
 
@@ -19,30 +23,32 @@ namespace PeterDB {
 //    RecordBasedFileManager &RecordBasedFileManager::operator=(const RecordBasedFileManager &) = default;
 
     RC RecordBasedFileManager::createFile(const std::string &fileName) {
-        // return pagedFileManager.createFile(fileName);
-        return -1;
+        return m_pagedFileManager->createFile(fileName);
     }
 
     RC RecordBasedFileManager::destroyFile(const std::string &fileName) {
-        // return pagedFileManager.destroyFile(fileName);
-        return -1;
+        return m_pagedFileManager->destroyFile(fileName);
     }
 
     RC RecordBasedFileManager::openFile(const std::string &fileName, FileHandle &fileHandle) {
-        // return pagedFileManager.openFile(fileName, fileHandle);
-        return -1;
+        return m_pagedFileManager->openFile(fileName, fileHandle);
     }
 
     RC RecordBasedFileManager::closeFile(FileHandle &fileHandle) {
-        // return pagedFileManager.closeFile(fileHandle);
-        return -1;
+        return m_pagedFileManager->closeFile(fileHandle);
     }
 
     RC RecordBasedFileManager::insertRecord(FileHandle &fileHandle, const std::vector<Attribute> &recordDescriptor,
                                             const void *data, RID &rid) {
-        // 1. serializedRecord, serializedRecordlength = transform record data into page-storage format
-        unsigned short serializedRecordLength = RecordTransformer::getSerializedDataLength(recordDescriptor, data);
-        void *serializedRecordData = malloc(serializedRecordLength);
+
+        // get the length of the serialised data
+        // then allocate that much memory and then
+        // serialize the data into that memory
+        auto serializedRecordLength = RecordTransformer::serialize(recordDescriptor, data, nullptr);
+        void *serializedRecord = malloc(serializedRecordLength);
+        assert(nullptr != serializedRecord);
+
+        RecordTransformer::serialize(recordDescriptor, data, serializedRecord);
 
         // 2. Determine pageNo
         //      a. scan all existing pages for sufficient space
@@ -68,14 +74,14 @@ namespace PeterDB {
         INFO("Page number = %ui", pageNum);
         Page *page = new Page(); //todo: try to reuse from before
         fileHandle.readPage(pageNum, page->getDataPtr());
-        unsigned short slotNum = page->insertRecord(serializedRecordData, serializedRecordLength);
+        unsigned short slotNum = page->insertRecord(serializedRecord, serializedRecordLength);
         rid.pageNum = pageNum;
         rid.slotNum = slotNum;
         fileHandle.writePage(pageNum, page->getDataPtr());
         INFO("Inserted record into page=%ui, slot=%us", pageNum, slotNum);
 
-        free(serializedRecordData);
-        return -1;
+        free(serializedRecord);
+        return 0;
     }
 
     RC RecordBasedFileManager::readRecord(FileHandle &fileHandle, const std::vector<Attribute> &recordDescriptor,
@@ -95,7 +101,8 @@ namespace PeterDB {
 
         // 4. *data <- transform to unserializedFormat(serializedRecord)
         RecordTransformer::deserialize(recordDescriptor, serializedRecord, data);
-        return -1;
+
+        return 0;
     }
 
     /*

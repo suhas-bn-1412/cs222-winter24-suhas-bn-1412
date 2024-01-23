@@ -1,3 +1,6 @@
+#ifndef _util_h_
+#define _util_h_
+
 #include <assert.h>
 #include <fcntl.h>
 #include <fstream>
@@ -58,3 +61,5 @@ void WARNING(const char* format, ...) {
     trace("WARNING", format, args);
     va_end(args);
 }
+
+#endif

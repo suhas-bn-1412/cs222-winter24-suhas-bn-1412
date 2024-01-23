@@ -32,7 +32,7 @@ uint32_t getVarcharAttrSize(void *data) {
 }
 
 void writeRecordMetadata(void *serializedRecord, uint16_t &attrCount,
-                         void *unserializedRecordData, uint16_t &nullFlagSize,
+                         const void *unserializedRecordData, uint16_t &nullFlagSize,
                          uint16_t *attrOffsetsInRecord, uint16_t offsetSzInRecord) {
     // write total number of attributes in the record
     memmove(serializedRecord, &attrCount, ATTR_COUNT_FIELD_SZ);
@@ -48,7 +48,8 @@ void writeRecordMetadata(void *serializedRecord, uint16_t &attrCount,
     return;
 }
 
-uint32_t PeterDB::RecordTransformer::serialize(const std::vector<Attribute> &recordDescriptor, void *recordData,
+uint32_t PeterDB::RecordTransformer::serialize(const std::vector<Attribute> &recordDescriptor,
+                                               const void *recordData,
                                                void *serializedRecord) {
     uint16_t attrCount = recordDescriptor.size();
     uint32_t serializedDataSz = 0;
@@ -141,11 +142,6 @@ uint32_t PeterDB::RecordTransformer::serialize(const std::vector<Attribute> &rec
     return serializedDataSz;
 }
 
-<<<<<<< HEAD
-void
-PeterDB::RecordTransformer::deserialize(const std::vector<Attribute> &recordDescriptor, const void *serializedRecord, void* deserializedRecord) {
-    //todo:
-=======
 void PeterDB::RecordTransformer::deserialize(const std::vector<Attribute> &recordDescriptor,
                                              const void *serializedRecord,
                                              void *recordData) {
@@ -213,5 +209,4 @@ void PeterDB::RecordTransformer::deserialize(const std::vector<Attribute> &recor
         }
         attrStart = attrEnd;
     }
->>>>>>> d674142 (Added logic for deserialization of record)
 }

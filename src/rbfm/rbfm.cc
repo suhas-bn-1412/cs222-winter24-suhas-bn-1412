@@ -65,6 +65,8 @@ namespace PeterDB {
                     break;
                 }
             }
+            Page *page = new Page();
+            fileHandle.appendPage(page->getDataPtr());
         }
 
         Page *page = new Page(); //todo: try to reuse from before

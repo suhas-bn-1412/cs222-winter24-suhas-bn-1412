@@ -83,25 +83,25 @@ namespace PeterDB {
     }
 
     unsigned short Page::getRecordOffset(unsigned short slotNumber) {
-        assert(slotNumber >= 0 && slotNumber < getSlotCount());
+//        assert(slotNumber >= 0 && slotNumber < getSlotCount());
         unsigned short *recordOffset = tailSlotMetadata - (SLOT_METADATA_SIZE * slotNumber);
         return *recordOffset;
     }
 
     unsigned short Page::getRecordLengthBytes(unsigned short slotNumber) {
-        assert(slotNumber >= 0 && slotNumber < getSlotCount());
+//        assert(slotNumber >= 0 && slotNumber < getSlotCount());
         unsigned short *recordLength = tailSlotMetadata - (SLOT_METADATA_SIZE * slotNumber) + 1;
         return *recordLength;
     }
 
     void Page::setRecordOffset(unsigned short recordOffset, unsigned short slotNumber) {
-        assert(slotNumber >= 0 && slotNumber < getSlotCount());
+//        assert(slotNumber >= 0 && slotNumber < getSlotCount());
         unsigned short *recordOffsetPtr = tailSlotMetadata - (SLOT_METADATA_SIZE * slotNumber);
         *recordOffsetPtr = recordOffset;
     }
 
     void Page::setRecordLengthBytes(unsigned short recordLengthBytes, unsigned short slotNumber) {
-        assert(slotNumber >= 0 && slotNumber < getSlotCount());
+//        assert(slotNumber >= 0 && slotNumber < getSlotCount());
         unsigned short *recordLengthBytesPtr = tailSlotMetadata - (SLOT_METADATA_SIZE * slotNumber) + 1;
         *recordLengthBytesPtr = recordLengthBytes;
     }

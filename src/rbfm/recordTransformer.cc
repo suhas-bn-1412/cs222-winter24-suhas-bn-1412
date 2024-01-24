@@ -249,9 +249,11 @@ void PeterDB::RecordTransformer::print(const std::vector<Attribute> &recordDescr
 
                 case TypeVarChar:
                     attrSize = *((uint32_t*)dataPtr);
-                    // stream << """;
-                    stream.write((const char*)((char*)dataPtr + VARCHAR_ATTR_SZ), attrSize);
-                    // stream << """;
+                    if (0 == attrSize) {
+                        stream << "";
+                    } else {
+                        stream.write((const char*)((char*)dataPtr + VARCHAR_ATTR_SZ), attrSize);
+                    }
                     dataPtr = (void*)((char*)dataPtr + (attrSize + VARCHAR_ATTR_SZ));
 
                     break;

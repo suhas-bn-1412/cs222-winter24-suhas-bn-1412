@@ -8,6 +8,10 @@ namespace PeterDB {
         initPageMetadata();
     }
 
+    Page::~Page() {
+        delete m_data;
+    }
+
     void Page::initPageMetadata() {
         setFreeByteCount(PAGE_SIZE - PAGE_METADATA_SIZE);
         setSlotCount(0);

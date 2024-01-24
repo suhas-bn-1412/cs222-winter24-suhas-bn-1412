@@ -95,10 +95,12 @@ namespace PeterDB {
         memset(data, 0, PAGE_SIZE);
 
         if (0 != fseek(m_fstream, 0, SEEK_SET)) {
+            free(data);
             ERROR("error while seeking to start of the file\n");
             return;
         }
         if (1 != fread(data, PAGE_SIZE, 1, m_fstream)) {
+            free(data);
             ERROR("Error while reading metadata\n");
             return;
         }
@@ -112,6 +114,7 @@ namespace PeterDB {
         } else {
             ERROR("Error while reading metadata\n");
         }
+        free(data);
     }
 
     void FileHandle::writeMetadataToDisk() {
@@ -126,12 +129,15 @@ namespace PeterDB {
 
         if (0 != fseek(m_fstream, 0, SEEK_SET)) {
             ERROR("error while seeking to start of the file\n");
+            free(data);
             return;
         }
         if (1 != fwrite(data, PAGE_SIZE, 1, m_fstream)) {
             ERROR("error while writing metadata\n");
+            free(data);
             return;
         }
+        free(data);
     }
 
     RC FileHandle::openFile() {

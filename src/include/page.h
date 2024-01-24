@@ -15,6 +15,7 @@ namespace PeterDB {
 
     public:
         Page();
+        ~Page();
 
         void initPageMetadata(); // used to create an (initially) zero records page.
 

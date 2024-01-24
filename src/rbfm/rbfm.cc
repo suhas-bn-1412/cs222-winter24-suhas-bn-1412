@@ -53,24 +53,20 @@ namespace PeterDB {
         //      b. create (append to file) a new page if needed
 
         PageNum pageNum;
+        Page page;
         if (fileHandle.getNumberOfPages() == 0) {
             pageNum = 0;
-            Page page;
             fileHandle.appendPage(page.getDataPtr());
         } else {
-            for (pageNum = 0; pageNum < fileHandle.getNumberOfPages(); ++pageNum) {
-                Page *page = new Page(); //todo: refactor out to loop to optimize memory alloc
-                fileHandle.readPage(pageNum, page->getDataPtr());
-                if (page->canInsertRecord(serializedRecordLength)) {
-                    break;
-                }
+            pageNum = fileHandle.getNumberOfPages()-1;
+            fileHandle.readPage(pageNum, page.getDataPtr());
+            if (!page.canInsertRecord(serializedRecordLength)) {
+                pageNum++;
+                fileHandle.appendPage(page.getDataPtr());
+                fileHandle.readPage(pageNum, page.getDataPtr());
             }
-            Page page;
-            fileHandle.appendPage(page.getDataPtr());
         }
 
-        Page page; //todo: try to reuse from before
-        fileHandle.readPage(pageNum, page.getDataPtr());
         unsigned short slotNum = page.insertRecord(serializedRecord, serializedRecordLength);
         rid.pageNum = pageNum;
         rid.slotNum = slotNum;
@@ -98,6 +94,7 @@ namespace PeterDB {
         // 4. *data <- transform to unserializedFormat(serializedRecord)
         RecordTransformer::deserialize(recordDescriptor, serializedRecord, data);
 
+        free(serializedRecord);
         return 0;
     }
 

@@ -10,19 +10,13 @@
 #define REAL_SZ 4
 #define VARCHAR_ATTR_SZ 4
 
-inline bool isNthBitSet (unsigned char c, int n) {
-    static unsigned char mask[] = {128, 64, 32, 16, 8, 4, 2, 1};
-    return ((c & mask[n]) != 0);
-}
-
 // given the null flags and the attribute number, returns True if the
 // attribute is defined as null in the flag
 bool isAttrNull(const void *recordData, const uint16_t &attrNum, const uint16_t &totalCount) {
     uint16_t q = (attrNum-1) / totalCount;
     uint16_t r = (attrNum-1) % totalCount;
 
-    void *flag_ptr = (void*)((char*)recordData + q);
-    return isNthBitSet(*((unsigned char*)flag_ptr), r);
+    return (0 != (((char*)recordData)[q] & (1 << (7-r))));
 }
 
 uint32_t getVarcharAttrSize(const void *data) {

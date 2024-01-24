@@ -148,6 +148,9 @@ void PeterDB::RecordTransformer::deserialize(const std::vector<Attribute> &recor
                                              const void *serializedRecord,
                                              void *recordData) {
     uint16_t attrCount = recordDescriptor.size();
+    uint16_t attrCountInSerializedData = *((const uint16_t*)serializedRecord);
+
+    assert(attrCountInSerializedData == attrCount);
 
     uint16_t nullFlagSize = (attrCount + 7) / 8;
     uint16_t offsetSzInRecord = attrCount * ATTR_OFFSET_SZ;

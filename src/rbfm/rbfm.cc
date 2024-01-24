@@ -55,8 +55,8 @@ namespace PeterDB {
         PageNum pageNum;
         if (fileHandle.getNumberOfPages() == 0) {
             pageNum = 0;
-            Page *page = new Page();
-            fileHandle.appendPage(page->getDataPtr());
+            Page page;
+            fileHandle.appendPage(page.getDataPtr());
         } else {
             for (pageNum = 0; pageNum < fileHandle.getNumberOfPages(); ++pageNum) {
                 Page *page = new Page(); //todo: refactor out to loop to optimize memory alloc
@@ -65,16 +65,16 @@ namespace PeterDB {
                     break;
                 }
             }
-            Page *page = new Page();
-            fileHandle.appendPage(page->getDataPtr());
+            Page page;
+            fileHandle.appendPage(page.getDataPtr());
         }
 
-        Page *page = new Page(); //todo: try to reuse from before
-        fileHandle.readPage(pageNum, page->getDataPtr());
-        unsigned short slotNum = page->insertRecord(serializedRecord, serializedRecordLength);
+        Page page; //todo: try to reuse from before
+        fileHandle.readPage(pageNum, page.getDataPtr());
+        unsigned short slotNum = page.insertRecord(serializedRecord, serializedRecordLength);
         rid.pageNum = pageNum;
         rid.slotNum = slotNum;
-        fileHandle.writePage(pageNum, page->getDataPtr());
+        fileHandle.writePage(pageNum, page.getDataPtr());
 
         free(serializedRecord);
         return 0;
@@ -86,14 +86,14 @@ namespace PeterDB {
         PageNum pageNum = rid.pageNum;
 
         // 2. Page page = PFM.readPage(pageNo)
-        Page *page = new Page();
-        fileHandle.readPage(pageNum, page->getDataPtr());
+        Page page;
+        fileHandle.readPage(pageNum, page.getDataPtr());
 
         // 3. serializedRecord = page.readRecord(slotNo)
         unsigned short slotNo = rid.slotNum;
-        byte serializedRecordLengthBytes = page->getRecordLengthBytes(slotNo);
+        byte serializedRecordLengthBytes = page.getRecordLengthBytes(slotNo);
         void *serializedRecord = malloc(serializedRecordLengthBytes);
-        page->readRecord(slotNo, serializedRecord);
+        page.readRecord(slotNo, serializedRecord);
 
         // 4. *data <- transform to unserializedFormat(serializedRecord)
         RecordTransformer::deserialize(recordDescriptor, serializedRecord, data);

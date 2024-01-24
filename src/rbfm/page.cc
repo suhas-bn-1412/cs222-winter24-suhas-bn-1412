@@ -45,7 +45,7 @@ namespace PeterDB {
     }
 
     void Page::readRecord(unsigned short slotNumber, void *data) {
-        assert(slotNumber >= 0 && slotNumber < getSlotCount());
+//        assert(slotNumber >= 0 && slotNumber < getSlotCount());
         unsigned short recordOffset = getRecordOffset(slotNumber);
         unsigned short recordLengthBytes = getRecordLengthBytes(slotNumber);
         // RbfmUtil::INFO("Reading record from slotNum=%ui: offset=%ui, length=%ui", slotNumber, recordOffset, recordLengthBytes);

@@ -13,18 +13,25 @@
 ### 2. Internal Record Format
 - Show your record format design.
 
+  ![img_3.png](img_3.png)
 
 
 - Describe how you store a null field.
-
+  Null fields are identified by storing a "null-flag", which allocates one bit per field, thus resulting in 
+  the "null-flag" being `ceil(num_attrs/8)` bits long (in order to keep the data byte-aligned).
+  For null fields, the offset pointers point to the same offset.
 
 
 - Describe how you store a VarChar field.
 
+  If field `F_k` is of varchar type, its data is stored in the position pointed to between the pointers
+  of field `F_(k-1)` and `F_k` from the field directory. Pointer `F_k` shall point to `F_(k-1) + varcharField.length`.
 
 
 - Describe how your record design satisfies O(1) field access.
 
+  To read field `F_k`, our implementation does not have to scan the previous `k-1` fields.
+  Instead, our implementation simply copies the data pointed to by the `k-1` and `k`th pointer from the record field directory
 
 
 ### 3. Page Format
@@ -59,16 +66,20 @@ PageNum getNextAvailablePage(record, file) {
 
 
 - How many hidden pages are utilized in your design?
+
     1 
 
 
 - Show your hidden page(s) format design if applicable
+
+    Hidden Page Data = 
 
   | metadataChecksum  | curPagesInFile   |
   |-------------------|------------------|
   | readPageCounter   | writePageCounter |
   | appendPageCounter |                  |  
 
+  metadataChecksum is an XOR of the remaining data variables.
 
 ### 5. Implementation Detail
 - Other implementation details goes here.

@@ -13,8 +13,8 @@
 // given the null flags and the attribute number, returns True if the
 // attribute is defined as null in the flag
 bool isAttrNull(const void *recordData, const uint16_t &attrNum, const uint16_t &totalCount) {
-    uint16_t q = (attrNum-1) / totalCount;
-    uint16_t r = (attrNum-1) % totalCount;
+    uint16_t q = (attrNum-1) / 8;
+    uint16_t r = (attrNum-1) % 8;
 
     return (0 != (((char*)recordData)[q] & (1 << (7-r))));
 }

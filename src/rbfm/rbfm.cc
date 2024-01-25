@@ -2,6 +2,7 @@
 #include "src/include/recordTransformer.h"
 
 #include <assert.h>
+#include <iostream>
 
 namespace PeterDB {
 
@@ -60,7 +61,10 @@ namespace PeterDB {
             bool pageFound = false;
             int i = fileHandle.getNumberOfPages()-1;
             while (!pageFound && i >= 0) {
-                fileHandle.readPage(i, m_page.getDataPtr());
+                if ( 0 != fileHandle.readPage(i, m_page.getDataPtr())) {
+                    std::cerr << "Error while reading the page " << i << "\n";
+                    return -1;
+                }
                 if (m_page.canInsertRecord(serializedRecordLength)) {
                     pageNum = i;
                     pageFound = true;
@@ -72,15 +76,20 @@ namespace PeterDB {
             }
             if (!pageFound) {
                 pageNum = fileHandle.getNumberOfPages();
-                fileHandle.appendPage(m_page.getDataPtr());
-                // fileHandle.readPage(pageNum, page.getDataPtr());
+                if (0 != fileHandle.appendPage(m_page.getDataPtr())) {
+                    std::cerr << "Error while appending the page " << pageNum << "\n";
+                    return -1;
+                }
             }
         }
 
         unsigned short slotNum = m_page.insertRecord(serializedRecord, serializedRecordLength);
         rid.pageNum = pageNum;
         rid.slotNum = slotNum;
-        fileHandle.writePage(pageNum, m_page.getDataPtr());
+        if (0 != fileHandle.writePage(pageNum, m_page.getDataPtr())) {
+            std::cerr << "Error while writing the page " << pageNum << "\n";
+            return -1;
+        }
 
         free(serializedRecord);
         return 0;
@@ -92,7 +101,10 @@ namespace PeterDB {
         PageNum pageNum = rid.pageNum;
 
         // 2. Page page = PFM.readPage(pageNo)
-        fileHandle.readPage(pageNum, m_page.getDataPtr());
+        if ( 0 != fileHandle.readPage(pageNum, m_page.getDataPtr())) {
+            std::cerr << "Error while reading the page " << pageNum << "\n";
+            return -1;
+        }
 
         // 3. serializedRecord = page.readRecord(slotNo)
         unsigned short slotNo = rid.slotNum;

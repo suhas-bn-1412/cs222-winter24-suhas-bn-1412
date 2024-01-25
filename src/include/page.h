@@ -29,6 +29,7 @@ namespace PeterDB {
 
         void readRecord(unsigned short slotNumber, void* data);
 
+        void eraseData();
     private:
         byte *m_data = new byte[PAGE_SIZE];
         unsigned short* freeByteCount = (unsigned short *) (m_data + PAGE_SIZE) - 1;

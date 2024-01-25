@@ -9,7 +9,10 @@ namespace PeterDB {
     }
 
     Page::~Page() {
-        delete m_data;
+        if (nullptr != m_data) {
+            delete m_data;
+        }
+        m_data = nullptr;
     }
 
     void Page::initPageMetadata() {
@@ -55,6 +58,11 @@ namespace PeterDB {
         // RbfmUtil::INFO("Reading record from slotNum=%ui: offset=%ui, length=%ui", slotNumber, recordOffset, recordLengthBytes);
         void *recordDataStart = (void*) (m_data + recordOffset);
         memcpy(data, recordDataStart, recordLengthBytes);
+    }
+
+    void Page::eraseData() {
+        if (nullptr != m_data)
+            memset((void*)m_data, 0, PAGE_SIZE);
     }
 
     unsigned short Page::getFreeByteCount() {

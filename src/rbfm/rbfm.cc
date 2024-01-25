@@ -58,12 +58,23 @@ namespace PeterDB {
             pageNum = 0;
             fileHandle.appendPage(page.getDataPtr());
         } else {
-            pageNum = fileHandle.getNumberOfPages()-1;
-            fileHandle.readPage(pageNum, page.getDataPtr());
-            if (!page.canInsertRecord(serializedRecordLength)) {
-                pageNum++;
+            bool pageFound = false;
+            int i = fileHandle.getNumberOfPages()-1;
+            while (!pageFound && i >= 0) {
+                fileHandle.readPage(i, page.getDataPtr());
+                if (page.canInsertRecord(serializedRecordLength)) {
+                    pageNum = i;
+                    pageFound = true;
+                }
+                else {
+                    page.eraseData();
+                }
+                i--;
+            }
+            if (!pageFound) {
+                pageNum = fileHandle.getNumberOfPages();
                 fileHandle.appendPage(page.getDataPtr());
-                fileHandle.readPage(pageNum, page.getDataPtr());
+                // fileHandle.readPage(pageNum, page.getDataPtr());
             }
         }
 

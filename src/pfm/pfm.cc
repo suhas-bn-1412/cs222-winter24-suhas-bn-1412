@@ -1,6 +1,8 @@
 #include "src/include/pfm.h"
 #include "src/include/util.h"
 
+#include <cstring>
+
 namespace PeterDB {
     PagedFileManager &PagedFileManager::instance() {
         static PagedFileManager _pf_manager = PagedFileManager();
@@ -27,7 +29,7 @@ namespace PeterDB {
             return -1;
         }
 
-        FILE *fstream = fopen(fileName.c_str(), "w+b");
+        FILE *fstream = fopen(fileName.c_str(), "wb+");
         if (nullptr == fstream) {
             ERROR("PagedFileManager::createFile - error while creating file '%s'", fileName.c_str());
             return -1;
@@ -96,12 +98,12 @@ namespace PeterDB {
 
         if (0 != fseek(m_fstream, 0, SEEK_SET)) {
             free(data);
-            ERROR("error while seeking to start of the file\n");
+            ERROR("FileHandle::loadMetadataFromDisk - Error while seeking to start of the file. err - %s\n", std::strerror(ferror(m_fstream)));
             return;
         }
         if (1 != fread(data, PAGE_SIZE, 1, m_fstream)) {
             free(data);
-            ERROR("Error while reading metadata\n");
+            ERROR("FileHandle::loadMetadataFromDisk - Error while reading metadata. err - %s\n", std::strerror(ferror(m_fstream)));
             return;
         }
 
@@ -128,12 +130,12 @@ namespace PeterDB {
         data[0] = (data[1] ^ data[2] ^ data[3] ^ data[4]);
 
         if (0 != fseek(m_fstream, 0, SEEK_SET)) {
-            ERROR("error while seeking to start of the file\n");
+            ERROR("FileHandle::writeMetadataToDisk - Error while seeking to start of the file. err - %s\n", std::strerror(ferror(m_fstream)));
             free(data);
             return;
         }
         if (1 != fwrite(data, PAGE_SIZE, 1, m_fstream)) {
-            ERROR("error while writing metadata\n");
+            ERROR("FileHandle::writeMetadataToDisk - Error while writing metadata - %s\n", std::strerror(ferror(m_fstream)));
             free(data);
             return;
         }
@@ -144,9 +146,9 @@ namespace PeterDB {
         assert(0 != m_fileName.length());
         assert(nullptr == m_fstream);
 
-        m_fstream = fopen(m_fileName.c_str(), "r+b");
+        m_fstream = fopen(m_fileName.c_str(), "rb+");
         if (nullptr == m_fstream) {
-            ERROR("FileHandle::openFile - unable to open file '%s'", m_fileName);
+            ERROR("FileHandle::openFile - unable to open file '%s'", m_fileName.c_str());
             return -1;
         }
 
@@ -166,7 +168,7 @@ namespace PeterDB {
         writeMetadataToDisk();
 
         if (0 != fclose(m_fstream)) {
-            WARNING("FileHandle::closeFile - couldn't properly close the file '%s'", m_fileName);
+            WARNING("FileHandle::closeFile - couldn't properly close the file '%s'. err - %s\n", m_fileName.c_str(), std::strerror(ferror(m_fstream)));
         }
         m_fstream = nullptr;
 
@@ -188,12 +190,12 @@ namespace PeterDB {
         if (0 != fseek(m_fstream,
                        PAGE_SIZE * (HIDDEN_PAGES + pageNum),
                        SEEK_SET)) {
-            ERROR("FileHandle::readPage - error while trying to seek to page '%d' in file '%s'", pageNum, m_fileName);
+            ERROR("FileHandle::readPage - error while trying to seek to page '%d' in file '%s'. err - %s\n", pageNum, m_fileName.c_str(), std::strerror(ferror(m_fstream)));
             return -1;
         }
 
         if (1 != fread(data, PAGE_SIZE, 1, m_fstream)) {
-            ERROR("FileHandle::readPage - error while reading '%d' page from file '%s'", pageNum, m_fileName);
+            ERROR("FileHandle::readPage - error while reading '%d' page from file '%s'. err - %s\n", pageNum, m_fileName.c_str(), std::strerror(ferror(m_fstream)));
             return -1;
         }
 
@@ -213,12 +215,12 @@ namespace PeterDB {
         if (0 != fseek(m_fstream,
                        PAGE_SIZE * (HIDDEN_PAGES + pageNum),
                        SEEK_SET)) {
-            ERROR("FileHandle::writePage - error while trying to seek to page '%d' in file '%s'", pageNum, m_fileName);
+            ERROR("FileHandle::writePage - error while trying to seek to page '%d' in file '%s'. err - %s\n", pageNum, m_fileName.c_str(), std::strerror(ferror(m_fstream)));
             return -1;
         }
 
         if (1 != fwrite(data, PAGE_SIZE, 1, m_fstream)) {
-            ERROR("FileHandle::writePage - error while writing '%d' page from file '%s'", pageNum, m_fileName);
+            ERROR("FileHandle::writePage - error while writing '%d' page from file '%s'. err - %s\n", pageNum, m_fileName.c_str(), std::strerror(ferror(m_fstream)));
             return -1;
         }
 
@@ -231,12 +233,12 @@ namespace PeterDB {
         assert(nullptr != m_fstream);
 
         if (0 != fseek(m_fstream, 0, SEEK_END)) {
-            ERROR("FileHandle::appendPage - error while trying to seek to end of file '%s'", m_fileName);
+            ERROR("FileHandle::appendPage - error while trying to seek to end of file '%s'. err - %s\n", m_fileName.c_str(), std::strerror(ferror(m_fstream)));
             return -1;
         }
 
         if (1 != fwrite(data, PAGE_SIZE, 1, m_fstream)) {
-            ERROR("FileHandle::appendPage - error while appending page to file '%s'", m_fileName);
+            ERROR("FileHandle::appendPage - error while appending page to file '%s'. err - %s\n", m_fileName.c_str(), std::strerror(ferror(m_fstream)));
             return -1;
         }
 

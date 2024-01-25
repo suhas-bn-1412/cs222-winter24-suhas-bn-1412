@@ -2,7 +2,8 @@
 #define _page_h_
 
 #define PAGE_SIZE 4096 //todo: consolidate with pfm's definition
-#define PAGE_METADATA_SIZE sizeof(unsigned short) * 2
+#define PAGE_METADATA_SIZE sizeof(unsigned short)
+#define SLOT_COUNT_METADAT_SIZE sizeof(unsigned short)
 #define SLOT_METADATA_SIZE sizeof(unsigned short) * 2
 #define FIRST_RECORD_OFFSET 0
 
@@ -32,9 +33,9 @@ namespace PeterDB {
         void eraseData();
     private:
         byte *m_data = new byte[PAGE_SIZE];
-        unsigned short* freeByteCount = (unsigned short *) (m_data + PAGE_SIZE) - 1;
-        unsigned short* slotCount = (unsigned short *) (m_data + PAGE_SIZE) - 2;
-        unsigned short *tailSlotMetadata = (unsigned short *) (m_data + PAGE_SIZE) - PAGE_METADATA_SIZE - SLOT_METADATA_SIZE;
+        unsigned short* freeByteCount = (unsigned short *) (m_data + PAGE_SIZE - PAGE_METADATA_SIZE);
+        unsigned short* slotCount = (unsigned short *) (m_data + PAGE_SIZE - PAGE_METADATA_SIZE - SLOT_COUNT_METADAT_SIZE);
+        unsigned short *tailSlotMetadata = (unsigned short *) (m_data + PAGE_SIZE - PAGE_METADATA_SIZE - SLOT_COUNT_METADAT_SIZE);
 
         unsigned short getFreeByteCount();
 

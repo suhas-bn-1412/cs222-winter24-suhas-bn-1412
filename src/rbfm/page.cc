@@ -16,7 +16,7 @@ namespace PeterDB {
     }
 
     void Page::initPageMetadata() {
-        setFreeByteCount(PAGE_SIZE - PAGE_METADATA_SIZE);
+        setFreeByteCount(PAGE_SIZE - PAGE_METADATA_SIZE - SLOT_COUNT_METADAT_SIZE);
         setSlotCount(0);
     }
 
@@ -28,34 +28,29 @@ namespace PeterDB {
 
     unsigned short Page::insertRecord(void *recordData, unsigned short recordLengthBytes) {
         if (!canInsertRecord(recordLengthBytes)) {
-            // RbfmUtil::ERROR("Cannot insert record. Insufficient free space in page.");
             return -1;
         }
 
         // insert the record data into the page
         unsigned short slotNumber = getSlotCount();
         unsigned short recordOffset = computeRecordOffset(slotNumber);
-        // RbfmUtil::INFO("Inserting record at slot=%ui, offset=%ui", slotNumber, recordOffset);
         byte *recordStart = m_data + recordOffset;
         memcpy(recordStart, recordData, recordLengthBytes);
 
         // set the newly inserted record's slot metadata
-        setSlotCount(getSlotCount() + 1);
         setRecordOffset(recordOffset, slotNumber);
         setRecordLengthBytes(recordLengthBytes, slotNumber);
 
         // update the page's metadata
-        setFreeByteCount(getFreeByteCount() - recordLengthBytes);
-        // RbfmUtil::INFO("Free bytes remaining in page=%ui", getFreeByteCount());
+        setSlotCount(getSlotCount() + 1);
+        setFreeByteCount(getFreeByteCount() - recordLengthBytes - SLOT_METADATA_SIZE);
 
         return slotNumber;
     }
 
     void Page::readRecord(unsigned short slotNumber, void *data) {
-//        assert(slotNumber >= 0 && slotNumber < getSlotCount());
         unsigned short recordOffset = getRecordOffset(slotNumber);
         unsigned short recordLengthBytes = getRecordLengthBytes(slotNumber);
-        // RbfmUtil::INFO("Reading record from slotNum=%ui: offset=%ui, length=%ui", slotNumber, recordOffset, recordLengthBytes);
         void *recordDataStart = (void*) (m_data + recordOffset);
         memcpy(data, recordDataStart, recordLengthBytes);
     }
@@ -95,26 +90,22 @@ namespace PeterDB {
     }
 
     unsigned short Page::getRecordOffset(unsigned short slotNumber) {
-//        assert(slotNumber >= 0 && slotNumber < getSlotCount());
-        unsigned short *recordOffset = tailSlotMetadata - (SLOT_METADATA_SIZE * slotNumber);
+        unsigned short *recordOffset = tailSlotMetadata - (SLOT_METADATA_SIZE * (slotNumber+1));
         return *recordOffset;
     }
 
     unsigned short Page::getRecordLengthBytes(unsigned short slotNumber) {
-//        assert(slotNumber >= 0 && slotNumber < getSlotCount());
-        unsigned short *recordLength = tailSlotMetadata - (SLOT_METADATA_SIZE * slotNumber) + 1;
+        unsigned short *recordLength = tailSlotMetadata - (SLOT_METADATA_SIZE * (slotNumber+1)) + 1;
         return *recordLength;
     }
 
     void Page::setRecordOffset(unsigned short recordOffset, unsigned short slotNumber) {
-//        assert(slotNumber >= 0 && slotNumber < getSlotCount());
-        unsigned short *recordOffsetPtr = tailSlotMetadata - (SLOT_METADATA_SIZE * slotNumber);
+        unsigned short *recordOffsetPtr = tailSlotMetadata - (SLOT_METADATA_SIZE * (slotNumber+1));
         *recordOffsetPtr = recordOffset;
     }
 
     void Page::setRecordLengthBytes(unsigned short recordLengthBytes, unsigned short slotNumber) {
-//        assert(slotNumber >= 0 && slotNumber < getSlotCount());
-        unsigned short *recordLengthBytesPtr = tailSlotMetadata - (SLOT_METADATA_SIZE * slotNumber) + 1;
+        unsigned short *recordLengthBytesPtr = tailSlotMetadata - (SLOT_METADATA_SIZE * (slotNumber+1)) + 1;
         *recordLengthBytesPtr = recordLengthBytes;
     }
 }

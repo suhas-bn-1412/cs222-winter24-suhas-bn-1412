@@ -51,7 +51,8 @@ void INFO(const char* format, ...) {
 void ERROR(const char* format, ...) {
     va_list args;
     va_start(args, format);
-    trace("ERROR  ", format, args);
+    // trace("ERROR  ", format, args);
+    vfprintf(stderr, format, args);
     va_end(args);
 }
 

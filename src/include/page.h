@@ -35,7 +35,7 @@ namespace PeterDB {
         byte *m_data = new byte[PAGE_SIZE];
         unsigned short* freeByteCount = (unsigned short *) (m_data + PAGE_SIZE - PAGE_METADATA_SIZE);
         unsigned short* slotCount = (unsigned short *) (m_data + PAGE_SIZE - PAGE_METADATA_SIZE - SLOT_COUNT_METADAT_SIZE);
-        unsigned short *tailSlotMetadata = (unsigned short *) (m_data + PAGE_SIZE - PAGE_METADATA_SIZE - SLOT_COUNT_METADAT_SIZE);
+        void *tailSlotMetadata = (void *) (m_data + PAGE_SIZE - PAGE_METADATA_SIZE - SLOT_COUNT_METADAT_SIZE);
 
         unsigned short getFreeByteCount();
 

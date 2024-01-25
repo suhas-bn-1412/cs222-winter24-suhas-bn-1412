@@ -90,22 +90,22 @@ namespace PeterDB {
     }
 
     unsigned short Page::getRecordOffset(unsigned short slotNumber) {
-        unsigned short *recordOffset = tailSlotMetadata - (SLOT_METADATA_SIZE * (slotNumber+1));
-        return *recordOffset;
+        unsigned short *slotData = (unsigned short*)(((char*)tailSlotMetadata) - (SLOT_METADATA_SIZE * (slotNumber+1)));
+        return *(slotData+0);
     }
 
     unsigned short Page::getRecordLengthBytes(unsigned short slotNumber) {
-        unsigned short *recordLength = tailSlotMetadata - (SLOT_METADATA_SIZE * (slotNumber+1)) + 1;
-        return *recordLength;
+        unsigned short *slotData = (unsigned short*)(((char*)tailSlotMetadata) - (SLOT_METADATA_SIZE * (slotNumber+1)));
+        return *(slotData+1);
     }
 
     void Page::setRecordOffset(unsigned short recordOffset, unsigned short slotNumber) {
-        unsigned short *recordOffsetPtr = tailSlotMetadata - (SLOT_METADATA_SIZE * (slotNumber+1));
-        *recordOffsetPtr = recordOffset;
+        unsigned short *slotData = (unsigned short*)(((char*)tailSlotMetadata) - (SLOT_METADATA_SIZE * (slotNumber+1)));
+        *(slotData + 0) = recordOffset;
     }
 
     void Page::setRecordLengthBytes(unsigned short recordLengthBytes, unsigned short slotNumber) {
-        unsigned short *recordLengthBytesPtr = tailSlotMetadata - (SLOT_METADATA_SIZE * (slotNumber+1)) + 1;
-        *recordLengthBytesPtr = recordLengthBytes;
+        unsigned short *slotData = (unsigned short*)(((char*)tailSlotMetadata) - (SLOT_METADATA_SIZE * (slotNumber+1)));
+        *(slotData + 1) = recordLengthBytes;
     }
 }

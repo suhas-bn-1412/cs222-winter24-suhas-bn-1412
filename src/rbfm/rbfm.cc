@@ -1,5 +1,4 @@
 #include "src/include/rbfm.h"
-#include "src/include/page.h"
 #include "src/include/recordTransformer.h"
 
 #include <assert.h>
@@ -53,35 +52,35 @@ namespace PeterDB {
         //      b. create (append to file) a new page if needed
 
         PageNum pageNum;
-        Page page;
+        m_page.eraseData();
         if (fileHandle.getNumberOfPages() == 0) {
             pageNum = 0;
-            fileHandle.appendPage(page.getDataPtr());
+            fileHandle.appendPage(m_page.getDataPtr());
         } else {
             bool pageFound = false;
             int i = fileHandle.getNumberOfPages()-1;
             while (!pageFound && i >= 0) {
-                fileHandle.readPage(i, page.getDataPtr());
-                if (page.canInsertRecord(serializedRecordLength)) {
+                fileHandle.readPage(i, m_page.getDataPtr());
+                if (m_page.canInsertRecord(serializedRecordLength)) {
                     pageNum = i;
                     pageFound = true;
                 }
                 else {
-                    page.eraseData();
+                    m_page.eraseData();
                 }
                 i--;
             }
             if (!pageFound) {
                 pageNum = fileHandle.getNumberOfPages();
-                fileHandle.appendPage(page.getDataPtr());
+                fileHandle.appendPage(m_page.getDataPtr());
                 // fileHandle.readPage(pageNum, page.getDataPtr());
             }
         }
 
-        unsigned short slotNum = page.insertRecord(serializedRecord, serializedRecordLength);
+        unsigned short slotNum = m_page.insertRecord(serializedRecord, serializedRecordLength);
         rid.pageNum = pageNum;
         rid.slotNum = slotNum;
-        fileHandle.writePage(pageNum, page.getDataPtr());
+        fileHandle.writePage(pageNum, m_page.getDataPtr());
 
         free(serializedRecord);
         return 0;
@@ -93,14 +92,13 @@ namespace PeterDB {
         PageNum pageNum = rid.pageNum;
 
         // 2. Page page = PFM.readPage(pageNo)
-        Page page;
-        fileHandle.readPage(pageNum, page.getDataPtr());
+        fileHandle.readPage(pageNum, m_page.getDataPtr());
 
         // 3. serializedRecord = page.readRecord(slotNo)
         unsigned short slotNo = rid.slotNum;
-        byte serializedRecordLengthBytes = page.getRecordLengthBytes(slotNo);
+        byte serializedRecordLengthBytes = m_page.getRecordLengthBytes(slotNo);
         void *serializedRecord = malloc(serializedRecordLengthBytes);
-        page.readRecord(slotNo, serializedRecord);
+        m_page.readRecord(slotNo, serializedRecord);
 
         // 4. *data <- transform to unserializedFormat(serializedRecord)
         RecordTransformer::deserialize(recordDescriptor, serializedRecord, data);

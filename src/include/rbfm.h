@@ -4,7 +4,7 @@
 #include <vector>
 
 #include "pfm.h"
-
+#include "page.h"
 
 namespace PeterDB {
     // Record ID
@@ -143,6 +143,7 @@ namespace PeterDB {
 
     private:
         PagedFileManager *m_pagedFileManager;
+        Page m_page;
     };
 
 } // namespace PeterDB

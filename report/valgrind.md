@@ -26,5 +26,5 @@
 -
     We used valgrind to check where memory leak was happening. Even though test cases were passing there were memory leaks.
     This helped us fix memory leaks which were causing other test cases to fail
-![gdb_img1.png](gdb_img1.png)
-![gdb_img2.png](gdb_img2.png)
+![valgrind_img1.png](valgrind_img1.png)
+![valgrind_img2.png](valgrind_img2.png)

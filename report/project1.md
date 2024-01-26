@@ -2,7 +2,7 @@
 
 
 ### 1. Basic information
- - Team #:
+ - Team #: 4
  - Github Repo Link: https://github.com/suhas-bn-1412/cs222-winter24-suhas-bn-1412
  - Student 1 UCI NetID: `snhegde`
  - Student 1 Name: Sujay Narashimamurthy Hegde

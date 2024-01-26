@@ -1,7 +1,6 @@
 #include "src/include/page.h"
-
-#include <assert.h>
-#include <string.h>
+#include <cstring>
+#include <cstdio>
 
 namespace PeterDB {
     Page::Page() {
@@ -9,21 +8,19 @@ namespace PeterDB {
     }
 
     Page::~Page() {
-        if (nullptr != m_data) {
-            delete[] m_data;
-        }
+        delete[] m_data;
         m_data = nullptr;
     }
 
     void Page::initPageMetadata() {
-        setFreeByteCount(PAGE_SIZE - PAGE_METADATA_SIZE - SLOT_COUNT_METADAT_SIZE);
+        setFreeByteCount(PAGE_SIZE - PAGE_METADATA_SIZE);
         setSlotCount(0);
     }
 
     bool Page::canInsertRecord(unsigned short recordLengthBytes) {
         // account for the new slot metadata that we need to write after inserting a new record
-        unsigned short availableBytes = getFreeByteCount() - SLOT_METADATA_SIZE;
-        return availableBytes >= recordLengthBytes;
+        unsigned short availableBytes = getFreeByteCount();
+        return availableBytes >= recordLengthBytes + SLOT_METADATA_SIZE;
     }
 
     unsigned short Page::insertRecord(void *recordData, unsigned short recordLengthBytes) {
@@ -45,6 +42,7 @@ namespace PeterDB {
         setSlotCount(getSlotCount() + 1);
         setFreeByteCount(getFreeByteCount() - recordLengthBytes - SLOT_METADATA_SIZE);
 
+//        printf("Inserted record into slot=%hu. Free bytes avlbl=%hu\n", slotNumber, getFreeByteCount());
         return slotNumber;
     }
 
@@ -57,7 +55,8 @@ namespace PeterDB {
 
     void Page::eraseData() {
         if (nullptr != m_data)
-            memset((void*)m_data, 0, PAGE_SIZE);
+            memset((void *) m_data, 0, PAGE_SIZE);
+        initPageMetadata();
     }
 
     unsigned short Page::getFreeByteCount() {

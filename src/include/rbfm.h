@@ -144,6 +144,8 @@ namespace PeterDB {
     private:
         PagedFileManager *m_pagedFileManager;
         Page m_page;
+
+        int computePageNumForInsertion(unsigned short recordLength, FileHandle &fileHandle);
     };
 
 } // namespace PeterDB

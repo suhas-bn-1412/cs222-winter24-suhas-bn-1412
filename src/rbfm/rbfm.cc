@@ -42,52 +42,31 @@ namespace PeterDB {
         // get the length of the serialised data
         // then allocate that much memory and then
         // serialize the data into that memory
-        auto serializedRecordLength = RecordTransformer::serialize(recordDescriptor, data, nullptr);
+        unsigned short serializedRecordLength = RecordTransformer::serialize(recordDescriptor, data, nullptr);
         void *serializedRecord = malloc(serializedRecordLength);
         assert(nullptr != serializedRecord);
-
         RecordTransformer::serialize(recordDescriptor, data, serializedRecord);
 
         // 2. Determine pageNo
         //      a. scan all existing pages for sufficient space
         //      b. create (append to file) a new page if needed
 
-        PageNum pageNum;
-        m_page.eraseData();
-        if (fileHandle.getNumberOfPages() == 0) {
-            pageNum = 0;
+        int pageNumber = computePageNumForInsertion(serializedRecordLength, fileHandle);
+        assert(pageNumber != -1);
+
+        if (pageNumber == fileHandle.getNumberOfPages()) {
+            m_page.eraseData();
             fileHandle.appendPage(m_page.getDataPtr());
-        } else {
-            bool pageFound = false;
-            int i = fileHandle.getNumberOfPages()-1;
-            while (!pageFound && i >= 0) {
-                if ( 0 != fileHandle.readPage(i, m_page.getDataPtr())) {
-                    std::cerr << "Error while reading the page " << i << "\n";
-                    return -1;
-                }
-                if (m_page.canInsertRecord(serializedRecordLength)) {
-                    pageNum = i;
-                    pageFound = true;
-                }
-                else {
-                    m_page.eraseData();
-                }
-                i--;
-            }
-            if (!pageFound) {
-                pageNum = fileHandle.getNumberOfPages();
-                if (0 != fileHandle.appendPage(m_page.getDataPtr())) {
-                    std::cerr << "Error while appending the page " << pageNum << "\n";
-                    return -1;
-                }
-            }
         }
 
+        fileHandle.readPage(pageNumber, m_page.getDataPtr());
         unsigned short slotNum = m_page.insertRecord(serializedRecord, serializedRecordLength);
-        rid.pageNum = pageNum;
+        rid.pageNum = pageNumber;
         rid.slotNum = slotNum;
-        if (0 != fileHandle.writePage(pageNum, m_page.getDataPtr())) {
-            std::cerr << "Error while writing the page " << pageNum << "\n";
+//        printf("Inserted record into page=%hu, slot=%hu\n", rid.pageNum, rid.slotNum);
+//        fflush(stdout);
+        if (0 != fileHandle.writePage(pageNumber, m_page.getDataPtr())) {
+            std::cerr << "Error while writing the page " << pageNumber << "\n";
             return -1;
         }
 
@@ -101,14 +80,16 @@ namespace PeterDB {
         PageNum pageNum = rid.pageNum;
 
         // 2. Page page = PFM.readPage(pageNo)
-        if ( 0 != fileHandle.readPage(pageNum, m_page.getDataPtr())) {
+        if (0 != fileHandle.readPage(pageNum, m_page.getDataPtr())) {
             std::cerr << "Error while reading the page " << pageNum << "\n";
             return -1;
         }
 
         // 3. serializedRecord = page.readRecord(slotNo)
         unsigned short slotNo = rid.slotNum;
-        byte serializedRecordLengthBytes = m_page.getRecordLengthBytes(slotNo);
+        unsigned short serializedRecordLengthBytes = m_page.getRecordLengthBytes(slotNo);
+        printf("Read record of size=%hu from page=%hu, slot=%hu\n", serializedRecordLengthBytes, rid.pageNum,
+               rid.slotNum);
         void *serializedRecord = malloc(serializedRecordLengthBytes);
         m_page.readRecord(slotNo, serializedRecord);
 
@@ -149,6 +130,22 @@ namespace PeterDB {
                                     const std::vector<std::string> &attributeNames,
                                     RBFM_ScanIterator &rbfm_ScanIterator) {
         return -1;
+    }
+
+    int RecordBasedFileManager::computePageNumForInsertion(unsigned short recordLength, FileHandle &fileHandle) {
+        if (fileHandle.getNumberOfPages() == 0) {
+            return 0;
+        }
+        for (int potentialPageNum = fileHandle.getNumberOfPages() - 1; potentialPageNum >= 0; potentialPageNum--) {
+            if (fileHandle.readPage(potentialPageNum, m_page.getDataPtr()) != 0) {
+                std::cerr << "Error while reading the page " << potentialPageNum << "\n";
+                return -1;
+            }
+            if (m_page.canInsertRecord(recordLength)) {
+                return potentialPageNum;
+            }
+        }
+        return fileHandle.getNumberOfPages();
     }
 
 } // namespace PeterDB

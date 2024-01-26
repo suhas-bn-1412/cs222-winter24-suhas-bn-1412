@@ -15,7 +15,16 @@
     We used a debugger to pinpoint the source of segmentation faults, evaluate expressions and the values of variables on the stack
 ![img.png](img.png)
 ![img_2.png](img_2.png)
+![gdb_img1.png](gdb_img1.png)
+![gdb_img2.png](gdb_img2.png)
+![gdb_img3.png](gdb_img3.png)
+![gdb_img4.png](gdb_img4.png)
 
 ### 3. Using Valgrind
 
 - Describe how you use Valgrind to detect memory leaks and other problems in your code and show screenshot of the Valgrind report.
+-
+    We used valgrind to check where memory leak was happening. Even though test cases were passing there were memory leaks.
+    This helped us fix memory leaks which were causing other test cases to fail
+![gdb_img1.png](gdb_img1.png)
+![gdb_img2.png](gdb_img2.png)

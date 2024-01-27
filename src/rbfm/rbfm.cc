@@ -1,5 +1,6 @@
 #include "src/include/rbfm.h"
 #include "src/include/recordTransformer.h"
+#include "src/include/util.h"
 
 #include <assert.h>
 #include <iostream>
@@ -63,10 +64,9 @@ namespace PeterDB {
         unsigned short slotNum = m_page.insertRecord(serializedRecord, serializedRecordLength);
         rid.pageNum = pageNumber;
         rid.slotNum = slotNum;
-//        printf("Inserted record into page=%hu, slot=%hu\n", rid.pageNum, rid.slotNum);
-//        fflush(stdout);
+        INFO("Inserted record into page=%hu, slot=%hu\n", rid.pageNum, rid.slotNum);
         if (0 != fileHandle.writePage(pageNumber, m_page.getDataPtr())) {
-            std::cerr << "Error while writing the page " << pageNumber << "\n";
+            ERROR("Error while writing the page %d\n", pageNumber);
             return -1;
         }
 
@@ -81,14 +81,14 @@ namespace PeterDB {
 
         // 2. Page page = PFM.readPage(pageNo)
         if (0 != fileHandle.readPage(pageNum, m_page.getDataPtr())) {
-            std::cerr << "Error while reading the page " << pageNum << "\n";
+            ERROR("Error while reading page %d\n", pageNum;
             return -1;
         }
 
         // 3. serializedRecord = page.readRecord(slotNo)
         unsigned short slotNo = rid.slotNum;
         unsigned short serializedRecordLengthBytes = m_page.getRecordLengthBytes(slotNo);
-        printf("Read record of size=%hu from page=%hu, slot=%hu\n", serializedRecordLengthBytes, rid.pageNum,
+        INFO("Read record of size=%hu from page=%hu, slot=%hu\n", serializedRecordLengthBytes, rid.pageNum,
                rid.slotNum);
         void *serializedRecord = malloc(serializedRecordLengthBytes);
         m_page.readRecord(slotNo, serializedRecord);
@@ -138,7 +138,7 @@ namespace PeterDB {
         }
         for (int potentialPageNum = fileHandle.getNumberOfPages() - 1; potentialPageNum >= 0; potentialPageNum--) {
             if (fileHandle.readPage(potentialPageNum, m_page.getDataPtr()) != 0) {
-                std::cerr << "Error while reading the page " << potentialPageNum << "\n";
+                ERROR("Error while reading page %d\n", potentialPageNum);
                 return -1;
             }
             if (m_page.canInsertRecord(recordLength)) {

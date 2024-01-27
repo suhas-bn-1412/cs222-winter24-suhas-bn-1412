@@ -6,6 +6,8 @@ add_subdirectory(ix)
 add_subdirectory(rm)
 add_subdirectory(qe)
 add_subdirectory(cli)
+add_subdirectory(util)
 
-add_executable(main start.cc)
+add_executable(main start.cc
+        util/util.cc)
 target_link_libraries(main cli qe ix rm)

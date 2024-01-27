@@ -51,12 +51,11 @@ namespace PeterDB {
         // 2. Determine pageNo
         //      a. scan all existing pages for sufficient space
         //      b. create (append to file) a new page if needed
-
         int pageNumber = computePageNumForInsertion(serializedRecordLength, fileHandle);
         assert(pageNumber != -1);
 
         if (pageNumber == fileHandle.getNumberOfPages()) {
-            m_page.eraseData();
+            m_page.eraseAndReset();
             fileHandle.appendPage(m_page.getDataPtr());
         }
 
@@ -81,17 +80,17 @@ namespace PeterDB {
 
         // 2. Page page = PFM.readPage(pageNo)
         if (0 != fileHandle.readPage(pageNum, m_page.getDataPtr())) {
-            ERROR("Error while reading page %d\n", pageNum;
+            ERROR("Error while reading page %d\n", pageNum);
             return -1;
         }
 
-        // 3. serializedRecord = page.readRecord(slotNo)
-        unsigned short slotNo = rid.slotNum;
-        unsigned short serializedRecordLengthBytes = m_page.getRecordLengthBytes(slotNo);
+        // 3. serializedRecord = page.readRecord(slotNum)
+        unsigned short slotNum = rid.slotNum;
+        unsigned short serializedRecordLengthBytes = m_page.getRecordLengthBytes(slotNum);
         INFO("Read record of size=%hu from page=%hu, slot=%hu\n", serializedRecordLengthBytes, rid.pageNum,
                rid.slotNum);
         void *serializedRecord = malloc(serializedRecordLengthBytes);
-        m_page.readRecord(slotNo, serializedRecord);
+        m_page.readRecord(slotNum, serializedRecord);
 
         // 4. *data <- transform to unserializedFormat(serializedRecord)
         RecordTransformer::deserialize(recordDescriptor, serializedRecord, data);

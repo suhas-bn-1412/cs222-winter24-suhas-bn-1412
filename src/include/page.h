@@ -29,18 +29,21 @@ namespace PeterDB {
 
         void readRecord(unsigned short slotNumber, void* data);
 
-        void eraseData();
+        void eraseAndReset();
+
     private:
         byte *m_data = new byte[PAGE_SIZE];
         unsigned short* freeByteCount = (unsigned short *) (m_data + PAGE_SIZE - PAGE_METADATA_SIZE) + 1;
         unsigned short* slotCount = (unsigned short *) (m_data + PAGE_SIZE - PAGE_METADATA_SIZE);
-        void *tailSlotMetadata = (void *) (m_data + PAGE_SIZE - PAGE_METADATA_SIZE);
+        byte *slotMetadataEnd =  (m_data + PAGE_SIZE - PAGE_METADATA_SIZE);
 
         unsigned short getFreeByteCount();
 
         unsigned short getSlotCount();
 
         unsigned short computeRecordOffset(unsigned short slotNumber);
+
+        unsigned short *getSlot(unsigned short slotNum);
 
         unsigned short getRecordOffset(unsigned short slotNumber);
 

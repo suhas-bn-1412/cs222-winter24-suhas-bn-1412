@@ -4,6 +4,7 @@
 #include <vector>
 
 #include "pfm.h"
+#include "page.h"
 
 namespace PeterDB {
     // Record ID
@@ -36,6 +37,7 @@ namespace PeterDB {
         NO_OP       // no condition
     } CompOp;
 
+    typedef unsigned char byte;
 
     /********************************************************************
     * The scan iterator is NOT required to be implemented for Project 1 *
@@ -140,7 +142,10 @@ namespace PeterDB {
         RecordBasedFileManager &operator=(const RecordBasedFileManager &);          // Prevent assignment
 
     private:
-         PagedFileManager &pagedFileManager = PagedFileManager::instance();
+        PagedFileManager *m_pagedFileManager;
+        Page m_page;
+
+        int computePageNumForInsertion(unsigned short recordLength, FileHandle &fileHandle);
     };
 
 } // namespace PeterDB

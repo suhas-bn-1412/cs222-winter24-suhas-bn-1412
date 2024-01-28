@@ -52,8 +52,27 @@ namespace PeterDB {
     void Page::readRecord(unsigned short slotNumber, void *data) {
         unsigned short recordOffset = getRecordOffset(slotNumber);
         unsigned short recordLengthBytes = getRecordLengthBytes(slotNumber);
+        if (recordLengthBytes == 0) {
+            return; // this was a deleted record
+        }
         void *recordDataStart = (void*) (m_data + recordOffset);
         memcpy(data, recordDataStart, recordLengthBytes);
+    }
+
+    void Page::deleteRecord(unsigned short slotNumber) {
+        assert(slotNumber >= 0 && slotNumber < getSlotCount());
+
+        unsigned short recordLengthBytes = getRecordLengthBytes(slotNumber);
+//      Set the record to be deleted'd length = 0 in the slot directory.
+        setRecordLengthBytes(0, slotNumber);
+
+//        shift records from subsequent slots (if any) left by the length of the deleted record
+        shiftRecordsLeft(slotNumber + 1, recordLengthBytes);
+
+//          update the page's freeByteCount
+//          Note: the slot of the deleted record, and the slot's metadata size,
+//          is 'lost' (can never be used) forever.
+        setFreeByteCount(getFreeByteCount() + recordLengthBytes);
     }
 
     void Page::eraseAndReset() {
@@ -113,5 +132,20 @@ namespace PeterDB {
     void Page::setRecordLengthBytes(unsigned short recordLengthBytes, unsigned short slotNumber) {
         unsigned short *slotData = getSlot(slotNumber);
         *(slotData + 1) = recordLengthBytes;
+    }
+
+    void Page::shiftRecordsLeft(int slotNumStart, unsigned short shiftOffsetBytes) {
+        if (slotNumStart >= getSlotCount()) {
+            return;
+        }
+
+        for (unsigned short slotNum = slotNumStart; slotNum < getSlotCount(); ++slotNum) {
+            unsigned short recordLengthBytes = getRecordLengthBytes(slotNum);
+            unsigned short recordOffsetOld = getRecordOffset(slotNum);
+            unsigned short recordOffsetNew = recordOffsetOld - shiftOffsetBytes;
+            memmove(m_data + recordOffsetNew, m_data + recordOffsetOld, recordLengthBytes);
+
+            setRecordOffset(recordOffsetNew, slotNum);
+        }
     }
 }

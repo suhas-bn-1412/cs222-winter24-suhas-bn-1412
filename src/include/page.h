@@ -25,9 +25,11 @@ namespace PeterDB {
 
         unsigned short insertRecord(void *recordData, unsigned short recordLengthBytes);
 
-        unsigned short getRecordLengthBytes(unsigned short slotNumber);
-
         void readRecord(unsigned short slotNumber, void* data);
+
+        void deleteRecord(unsigned short slotNumber);
+
+        unsigned short getRecordLengthBytes(unsigned short slotNumber);
 
         void eraseAndReset();
 
@@ -54,6 +56,8 @@ namespace PeterDB {
         void setRecordOffset(unsigned short recordOffset, unsigned short slotNumber);
 
         void setRecordLengthBytes(unsigned short recordLengthBytes, unsigned short slotNumber);
+
+        void shiftRecordsLeft(int slotNumStart, unsigned short shiftOffsetBytes);
     };
 }
 

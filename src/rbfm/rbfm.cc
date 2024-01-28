@@ -87,7 +87,12 @@ namespace PeterDB {
         // 3. serializedRecord = page.readRecord(slotNum)
         unsigned short slotNum = rid.slotNum;
         unsigned short serializedRecordLengthBytes = m_page.getRecordLengthBytes(slotNum);
-        INFO("Read record of size=%hu from page=%hu, slot=%hu\n", serializedRecordLengthBytes, rid.pageNum,
+        if (serializedRecordLengthBytes == 0) {
+            WARNING("Cannot read record on page=%hu, slot=%hu as it was previously deleted", rid.pageNum, rid.slotNum);
+            return -1;
+        }
+
+        INFO("Reading record of size=%hu from page=%hu, slot=%hu\n", serializedRecordLengthBytes, rid.pageNum,
                rid.slotNum);
         void *serializedRecord = malloc(serializedRecordLengthBytes);
         m_page.readRecord(slotNum, serializedRecord);
@@ -105,13 +110,24 @@ namespace PeterDB {
         return 0;
     }
 
-    /*
-     * End of CS222 Project1 impl
-     */
 
     RC RecordBasedFileManager::deleteRecord(FileHandle &fileHandle, const std::vector<Attribute> &recordDescriptor,
                                             const RID &rid) {
-        return -1;
+//        1. read the page indicated by rid.pageNum into memory (m_page)
+        assert(rid.pageNum >= 0 && rid.pageNum < fileHandle.getNumberOfPages());
+        fileHandle.readPage(rid.pageNum, m_page.getDataPtr());
+
+//        2. page.deleteRecord(rid.slotNum)
+        m_page.deleteRecord(rid.slotNum);
+
+//      3. write through - current page from memory to file
+        if (0 != fileHandle.writePage(rid.pageNum, m_page.getDataPtr())) {
+            ERROR("Error while writing the page %d\n", rid.pageNum);
+            return -1;
+        }
+
+        INFO("Deleted record from page=%hu, slot=%hu", rid.pageNum, rid.slotNum);
+        return 0;
     }
 
     RC RecordBasedFileManager::updateRecord(FileHandle &fileHandle, const std::vector<Attribute> &recordDescriptor,

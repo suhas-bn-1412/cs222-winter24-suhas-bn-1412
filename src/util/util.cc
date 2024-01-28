@@ -48,6 +48,6 @@ void ERROR(const char* format, ...) {
 void WARNING(const char* format, ...) {
     va_list args;
     va_start(args, format);
-    trace("WARNING", format, args);
+    trace("WARNING      ", format, args);
     va_end(args);
 }

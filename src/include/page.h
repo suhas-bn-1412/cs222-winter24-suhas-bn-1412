@@ -3,8 +3,6 @@
 
 #define PAGE_SIZE 4096 //todo: consolidate with pfm's definition
 #define PAGE_METADATA_SIZE sizeof(unsigned short) * 2
-//#define SLOT_METADATA_SIZE Slot.SLOT_LENGTH_BYTES
-#define SLOT_METADATA_SIZE sizeof(unsigned short) * 2
 #define FIRST_RECORD_OFFSET 0
 
 #include <cstdlib>
@@ -54,6 +52,10 @@ namespace PeterDB {
         void setSlotCount(unsigned short numSlotsInPage);
 
         void shiftRecordsLeft(int slotNumStart, unsigned short shiftOffsetBytes);
+
+        void shiftRecordsRight(int slotNumStart, unsigned short shiftOffsetBytes);
+
+        unsigned short getSlotForInsertion(unsigned short recordLengthBytes);
     };
 }
 

@@ -20,7 +20,7 @@ namespace PeterDB {
     bool Page::canInsertRecord(unsigned short recordLengthBytes) {
         unsigned short availableBytes = getFreeByteCount();
         // account for the new slot metadata that we need to write after inserting a new record
-        return availableBytes >= (recordLengthBytes + SLOT_METADATA_SIZE);
+        return availableBytes >= (recordLengthBytes + Slot::SLOT_LENGTH_BYTES);
     }
 
     unsigned short Page::insertRecord(void *recordData, unsigned short recordLengthBytes) {
@@ -31,7 +31,7 @@ namespace PeterDB {
         }
 
         // insert the record data into the page
-        unsigned short slotNumber = getSlotCount();
+        unsigned short slotNumber = getSlotForInsertion(recordLengthBytes);
         unsigned short recordOffset = computeRecordOffset(slotNumber);
         byte *recordStart = m_data + recordOffset;
         memcpy(recordStart, recordData, recordLengthBytes);
@@ -41,10 +41,13 @@ namespace PeterDB {
         getSlot(slotNumber).setRecordLengthBytes(recordLengthBytes);
 
         // update the page's metadata
-        setSlotCount(getSlotCount() + 1);
-        setFreeByteCount(getFreeByteCount() - recordLengthBytes - SLOT_METADATA_SIZE);
+        if (slotNumber == getSlotCount()) {
+            // this was a newly created slot.
+            setSlotCount(getSlotCount() + 1);
+        }
+        setFreeByteCount(getFreeByteCount() - recordLengthBytes - Slot::SLOT_LENGTH_BYTES);
 
-        INFO("Inserted record into slot=%hu. Free bytes avlbl=%hu\n", slotNumber, getFreeByteCount());
+        INFO("Inserted record of length=%hu into slot=%hu. Free bytes avlbl=%hu\n", recordLengthBytes, slotNumber, getFreeByteCount());
         return slotNumber;
     }
 
@@ -108,7 +111,7 @@ namespace PeterDB {
     }
 
     Slot Page::getSlot(unsigned short slotNum){
-        Slot slot((void *) (slotMetadataEnd - (SLOT_METADATA_SIZE * (slotNum + 1))));
+        Slot slot((void *) (slotMetadataEnd - (Slot::SLOT_LENGTH_BYTES * (slotNum + 1))));
         return slot;
     }
 
@@ -123,11 +126,40 @@ namespace PeterDB {
             unsigned short recordOffsetNew = recordOffsetOld - shiftOffsetBytes;
             memmove(m_data + recordOffsetNew, m_data + recordOffsetOld, slot.getRecordLengthBytes());
 
-            slot.setRecordOffsetBytes(slotNum);
+            slot.setRecordOffsetBytes(recordOffsetNew);
+        }
+    }
+
+    void Page::shiftRecordsRight(int slotNumStart, unsigned short shiftOffsetBytes) {
+        if (slotNumStart >= getSlotCount()) {
+            return;
+        }
+
+        for (unsigned short slotNum = getSlotCount() - 1; slotNum >= slotNumStart; --slotNum) {
+            Slot slot = getSlot(slotNum);
+            unsigned short recordOffsetOld = slot.getRecordOffsetBytes();
+            unsigned short recordOffsetNew = recordOffsetOld + shiftOffsetBytes;
+            memmove(m_data + recordOffsetNew, m_data + recordOffsetOld, slot.getRecordLengthBytes());
+
+            slot.setRecordOffsetBytes(recordOffsetNew);
         }
     }
 
     unsigned short Page::getRecordLengthBytes(unsigned short slotNumber) {
         return getSlot(slotNumber).getRecordLengthBytes();
+    }
+
+    unsigned short Page::getSlotForInsertion(unsigned short recordLengthBytes) {
+        if (getSlotCount() == 0) {
+            return 0;
+        }
+        for (unsigned short slotNum = 0; slotNum < getSlotCount(); ++slotNum) {
+            Slot slot = getSlot(slotNum);
+            if (slot.getRecordLengthBytes() == 0) {
+                shiftRecordsRight(slotNum + 1, recordLengthBytes);
+                return slotNum;
+            }
+        }
+        return getSlotCount();
     }
 }

@@ -16,6 +16,6 @@ void PeterDB::Slot::setRecordOffsetBytes(unsigned short recordOffsetBytes) {
     m_slotData[0] = recordOffsetBytes;
 }
 
-void PeterDB::Slot::setRecordLengthBytes() {
-    m_slotData[1] = getRecordLengthBytes();
+void PeterDB::Slot::setRecordLengthBytes(unsigned short recordLengthBytes) {
+    m_slotData[1] = recordLengthBytes;
 }

@@ -27,7 +27,7 @@ namespace PeterDB {
 
         void setRecordOffsetBytes(unsigned short recordOffsetBytes);
 
-        void setRecordLengthBytes();
+        void setRecordLengthBytes(unsigned short recordLengthBytes);
     };
 }
 

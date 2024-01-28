@@ -1,7 +1,6 @@
 #include "src/include/page.h"
 #include "src/include/util.h"
 #include <cstring>
-#include <cstdio>
 
 namespace PeterDB {
     Page::Page() {
@@ -21,7 +20,7 @@ namespace PeterDB {
     bool Page::canInsertRecord(unsigned short recordLengthBytes) {
         unsigned short availableBytes = getFreeByteCount();
         // account for the new slot metadata that we need to write after inserting a new record
-        return availableBytes >= (recordLengthBytes + SLOT_METADATA_SIZE);
+        return availableBytes >= (recordLengthBytes + Slot::SLOT_LENGTH_BYTES);
     }
 
     unsigned short Page::insertRecord(void *recordData, unsigned short recordLengthBytes) {
@@ -32,28 +31,49 @@ namespace PeterDB {
         }
 
         // insert the record data into the page
-        unsigned short slotNumber = getSlotCount();
+        unsigned short slotNumber = getSlotForInsertion(recordLengthBytes);
         unsigned short recordOffset = computeRecordOffset(slotNumber);
         byte *recordStart = m_data + recordOffset;
         memcpy(recordStart, recordData, recordLengthBytes);
 
         // set the newly inserted record's slot metadata
-        setRecordOffset(recordOffset, slotNumber);
-        setRecordLengthBytes(recordLengthBytes, slotNumber);
+        getSlot(slotNumber).setRecordOffsetBytes(recordOffset);
+        getSlot(slotNumber).setRecordLengthBytes(recordLengthBytes);
 
         // update the page's metadata
-        setSlotCount(getSlotCount() + 1);
-        setFreeByteCount(getFreeByteCount() - recordLengthBytes - SLOT_METADATA_SIZE);
+        if (slotNumber == getSlotCount()) {
+            // this was a newly created slot.
+            setSlotCount(getSlotCount() + 1);
+        }
+        setFreeByteCount(getFreeByteCount() - recordLengthBytes - Slot::SLOT_LENGTH_BYTES);
 
-        INFO("Inserted record into slot=%hu. Free bytes avlbl=%hu\n", slotNumber, getFreeByteCount());
+        INFO("Inserted record of length=%hu into slot=%hu. Free bytes avlbl=%hu\n", recordLengthBytes, slotNumber, getFreeByteCount());
         return slotNumber;
     }
 
     void Page::readRecord(unsigned short slotNumber, void *data) {
-        unsigned short recordOffset = getRecordOffset(slotNumber);
-        unsigned short recordLengthBytes = getRecordLengthBytes(slotNumber);
-        void *recordDataStart = (void*) (m_data + recordOffset);
-        memcpy(data, recordDataStart, recordLengthBytes);
+        Slot recordSlot = getSlot(slotNumber);
+        if (recordSlot.getRecordLengthBytes() == 0) {
+            return; // this was a deleted record
+        }
+        void *recordDataStart = (void*) (m_data + recordSlot.getRecordOffsetBytes());
+        memcpy(data, recordDataStart, recordSlot.getRecordLengthBytes());
+    }
+
+    void Page::deleteRecord(unsigned short slotNumber) {
+        assert(slotNumber >= 0 && slotNumber < getSlotCount());
+        Slot recordSlot = getSlot(slotNumber);
+
+//        shift records from subsequent slots (if any) left by the length of the deleted record
+        shiftRecordsLeft(slotNumber + 1, recordSlot.getRecordLengthBytes());
+
+//          update the page's freeByteCount
+//          Note: the slot of the deleted record, and the slot's metadata size,
+//          is 'lost' (can never be used) forever.
+        setFreeByteCount(getFreeByteCount() + recordSlot.getRecordLengthBytes());
+
+//      Set the record to be deleted'd length = 0 in the slot directory.
+        recordSlot.setRecordLengthBytes(0);
     }
 
     void Page::eraseAndReset() {
@@ -86,32 +106,60 @@ namespace PeterDB {
         if (slotNumber == 0) {
             return FIRST_RECORD_OFFSET;
         }
-        unsigned short previousRecordOffset = getRecordOffset(slotNumber - 1);
-        unsigned short previousRecordLength = getRecordLengthBytes(slotNumber - 1);
-        return previousRecordOffset + previousRecordLength;
+        Slot previousSlot = getSlot(slotNumber - 1);
+        return previousSlot.getRecordOffsetBytes() + previousSlot.getRecordLengthBytes();
     }
 
-    unsigned short* Page::getSlot(unsigned short slotNum){
-        return (unsigned short *) (slotMetadataEnd - (SLOT_METADATA_SIZE * (slotNum + 1)));
+    Slot Page::getSlot(unsigned short slotNum){
+        Slot slot((void *) (slotMetadataEnd - (Slot::SLOT_LENGTH_BYTES * (slotNum + 1))));
+        return slot;
     }
 
-    unsigned short Page::getRecordOffset(unsigned short slotNumber) {
-        unsigned short *slotData = getSlot(slotNumber);
-        return *(slotData+0);
+    void Page::shiftRecordsLeft(int slotNumStart, unsigned short shiftOffsetBytes) {
+        if (slotNumStart >= getSlotCount()) {
+            return;
+        }
+
+        for (unsigned short slotNum = slotNumStart; slotNum < getSlotCount(); ++slotNum) {
+            Slot slot = getSlot(slotNum);
+            unsigned short recordOffsetOld = slot.getRecordOffsetBytes();
+            unsigned short recordOffsetNew = recordOffsetOld - shiftOffsetBytes;
+            memmove(m_data + recordOffsetNew, m_data + recordOffsetOld, slot.getRecordLengthBytes());
+
+            slot.setRecordOffsetBytes(recordOffsetNew);
+        }
+    }
+
+    void Page::shiftRecordsRight(int slotNumStart, unsigned short shiftOffsetBytes) {
+        if (slotNumStart >= getSlotCount()) {
+            return;
+        }
+
+        for (unsigned short slotNum = getSlotCount() - 1; slotNum >= slotNumStart; --slotNum) {
+            Slot slot = getSlot(slotNum);
+            unsigned short recordOffsetOld = slot.getRecordOffsetBytes();
+            unsigned short recordOffsetNew = recordOffsetOld + shiftOffsetBytes;
+            memmove(m_data + recordOffsetNew, m_data + recordOffsetOld, slot.getRecordLengthBytes());
+
+            slot.setRecordOffsetBytes(recordOffsetNew);
+        }
     }
 
     unsigned short Page::getRecordLengthBytes(unsigned short slotNumber) {
-        unsigned short *slotData = getSlot(slotNumber);
-        return *(slotData + 1);
+        return getSlot(slotNumber).getRecordLengthBytes();
     }
 
-    void Page::setRecordOffset(unsigned short recordOffset, unsigned short slotNumber) {
-        unsigned short *slotData = getSlot(slotNumber);
-        *(slotData + 0) = recordOffset;
-    }
-
-    void Page::setRecordLengthBytes(unsigned short recordLengthBytes, unsigned short slotNumber) {
-        unsigned short *slotData = getSlot(slotNumber);
-        *(slotData + 1) = recordLengthBytes;
+    unsigned short Page::getSlotForInsertion(unsigned short recordLengthBytes) {
+        if (getSlotCount() == 0) {
+            return 0;
+        }
+        for (unsigned short slotNum = 0; slotNum < getSlotCount(); ++slotNum) {
+            Slot slot = getSlot(slotNum);
+            if (slot.getRecordLengthBytes() == 0) {
+                shiftRecordsRight(slotNum + 1, recordLengthBytes);
+                return slotNum;
+            }
+        }
+        return getSlotCount();
     }
 }

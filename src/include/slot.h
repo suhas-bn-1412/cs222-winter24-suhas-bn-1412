@@ -17,7 +17,7 @@ namespace PeterDB {
         unsigned short *m_slotData;
 
     public:
-        static const unsigned short SLOT_LENGTH_BYTES = NUM_FIELDS * FIELD_SIZE;
+        static const unsigned short SLOT_METADATA_LENGTH_BYTES = NUM_FIELDS * FIELD_SIZE;
 
         Slot(void* slotData);
 

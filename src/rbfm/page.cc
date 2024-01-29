@@ -1,6 +1,5 @@
 #include "src/include/page.h"
-#include "src/include/util.h"
-#include <cstring>
+
 
 namespace PeterDB {
     Page::Page() {
@@ -20,44 +19,45 @@ namespace PeterDB {
     bool Page::canInsertRecord(unsigned short recordLengthBytes) {
         unsigned short availableBytes = getFreeByteCount();
         // account for the new slot metadata that we need to write after inserting a new record
-        return availableBytes >= (recordLengthBytes + Slot::SLOT_LENGTH_BYTES);
+        return availableBytes >= (recordLengthBytes
+                                  + RecordAndMetadata::RECORD_METADATA_LENGTH_BYTES + Slot::SLOT_METADATA_LENGTH_BYTES);
     }
 
-    unsigned short Page::insertRecord(void *recordData, unsigned short recordLengthBytes) {
-        if (!canInsertRecord(recordLengthBytes)) {
-            ERROR("Cannot insert record of size=%hu into page having %hu bytes free\n", recordLengthBytes,
+    void Page::insertRecord(RecordAndMetadata* recordAndMetadata) {
+        if (!canInsertRecord(recordAndMetadata->getRecordAndMetadataLength())) {
+            ERROR("Cannot insert record and metadata of size=%hu into page having %hu bytes free\n",
+                  recordAndMetadata->getRecordAndMetadataLength(),
                   getFreeByteCount());
-            return -1;
         }
 
         // insert the record data into the page
-        unsigned short slotNumber = getSlotForInsertion(recordLengthBytes);
-        unsigned short recordOffset = computeRecordOffset(slotNumber);
+        unsigned short recordOffset = computeRecordOffset(recordAndMetadata->getSlotNumber());
         byte *recordStart = m_data + recordOffset;
-        memcpy(recordStart, recordData, recordLengthBytes);
+        recordAndMetadata->write(recordStart);
 
         // set the newly inserted record's slot metadata
-        getSlot(slotNumber).setRecordOffsetBytes(recordOffset);
-        getSlot(slotNumber).setRecordLengthBytes(recordLengthBytes);
+        Slot slot = getSlot(recordAndMetadata->getSlotNumber());
+        slot.setRecordOffsetBytes(recordOffset);
+        slot.setRecordLengthBytes(recordAndMetadata->getRecordAndMetadataLength());
 
         // update the page's metadata
-        if (slotNumber == getSlotCount()) {
+        if (recordAndMetadata->getSlotNumber() == getSlotCount()) {
             // this was a newly created slot.
             setSlotCount(getSlotCount() + 1);
         }
-        setFreeByteCount(getFreeByteCount() - recordLengthBytes - Slot::SLOT_LENGTH_BYTES);
+        setFreeByteCount(getFreeByteCount() - recordAndMetadata->getRecordAndMetadataLength() - Slot::SLOT_METADATA_LENGTH_BYTES);
 
-        INFO("Inserted record of length=%hu into slot=%hu. Free bytes avlbl=%hu\n", recordLengthBytes, slotNumber, getFreeByteCount());
-        return slotNumber;
+        INFO("Inserted record of length=%hu into slot=%hu. Free bytes avlbl=%hu\n",
+             recordAndMetadata->getRecordAndMetadataLength(), recordAndMetadata->getSlotNumber(), getFreeByteCount());
     }
 
-    void Page::readRecord(unsigned short slotNumber, void *data) {
-        Slot recordSlot = getSlot(slotNumber);
+    void Page::readRecord(RecordAndMetadata* recordAndMetadata, unsigned short slotNum) {
+        Slot recordSlot = getSlot(slotNum);
         if (recordSlot.getRecordLengthBytes() == 0) {
             return; // this was a deleted record
         }
         void *recordDataStart = (void*) (m_data + recordSlot.getRecordOffsetBytes());
-        memcpy(data, recordDataStart, recordSlot.getRecordLengthBytes());
+        recordAndMetadata->read(recordDataStart, recordSlot.getRecordLengthBytes());
     }
 
     void Page::deleteRecord(unsigned short slotNumber) {
@@ -111,7 +111,7 @@ namespace PeterDB {
     }
 
     Slot Page::getSlot(unsigned short slotNum){
-        Slot slot((void *) (slotMetadataEnd - (Slot::SLOT_LENGTH_BYTES * (slotNum + 1))));
+        Slot slot((void *) (slotMetadataEnd - (Slot::SLOT_METADATA_LENGTH_BYTES * (slotNum + 1))));
         return slot;
     }
 
@@ -149,7 +149,7 @@ namespace PeterDB {
         return getSlot(slotNumber).getRecordLengthBytes();
     }
 
-    unsigned short Page::getSlotForInsertion(unsigned short recordLengthBytes) {
+    unsigned short Page::computeSlotForInsertion(unsigned short recordLengthBytes) {
         if (getSlotCount() == 0) {
             return 0;
         }

@@ -6,11 +6,15 @@
 #define FIRST_RECORD_OFFSET 0
 
 #include <cstdlib>
+#include <cstring>
 #include "src/include/slot.h"
+#include "src/include/record.h"
+#include "src/include/util.h"
 
-typedef unsigned char byte;
 
 namespace PeterDB {
+    typedef unsigned char byte;
+
     class Page {
 
     public:
@@ -23,9 +27,11 @@ namespace PeterDB {
 
         bool canInsertRecord(unsigned short recordLengthBytes);
 
-        unsigned short insertRecord(void *recordData, unsigned short recordLengthBytes);
+        unsigned short computeSlotForInsertion(unsigned short recordLengthBytes);
 
-        void readRecord(unsigned short slotNumber, void* data);
+        void insertRecord(RecordAndMetadata* recordAndMetadata);
+
+        void readRecord(RecordAndMetadata* recordAndMetadata, unsigned short slotNum);
 
         void deleteRecord(unsigned short slotNumber);
 
@@ -54,8 +60,6 @@ namespace PeterDB {
         void shiftRecordsLeft(int slotNumStart, unsigned short shiftOffsetBytes);
 
         void shiftRecordsRight(int slotNumStart, unsigned short shiftOffsetBytes);
-
-        unsigned short getSlotForInsertion(unsigned short recordLengthBytes);
     };
 }
 

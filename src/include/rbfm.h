@@ -3,11 +3,11 @@
 
 #include <vector>
 
-#include "pfm.h"
-#include "page.h"
+#include "src/include/pfm.h"
+#include "src/include/page.h"
 
 namespace PeterDB {
-    // Record ID
+    // RecordAndMetadata ID
     typedef struct {
         unsigned pageNum;           // page number
         unsigned short slotNum;     // slot number in the page

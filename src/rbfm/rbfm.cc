@@ -55,12 +55,17 @@ namespace PeterDB {
         assert(pageNumber != -1);
 
         if (pageNumber == fileHandle.getNumberOfPages()) {
+            // create and append a new page to the file
             m_page.eraseAndReset();
             fileHandle.appendPage(m_page.getDataPtr());
         }
 
         fileHandle.readPage(pageNumber, m_page.getDataPtr());
-        unsigned short slotNum = m_page.insertRecord(serializedRecord, serializedRecordLength);
+
+        unsigned short slotNum = m_page.computeSlotForInsertion(serializedRecordLength);
+        RecordAndMetadata recordAndMetadata;
+        recordAndMetadata.init(pageNumber, slotNum, serializedRecordLength, serializedRecord);
+        m_page.insertRecord(&recordAndMetadata);
         rid.pageNum = pageNumber;
         rid.slotNum = slotNum;
         INFO("Inserted record into page=%hu, slot=%hu\n", rid.pageNum, rid.slotNum);
@@ -78,7 +83,7 @@ namespace PeterDB {
         // 1. pageNo = RID.pageNo
         PageNum pageNum = rid.pageNum;
 
-        // 2. Page page = PFM.readPage(pageNo)
+        // 2. Load the page
         if (0 != fileHandle.readPage(pageNum, m_page.getDataPtr())) {
             ERROR("Error while reading page %d\n", pageNum);
             return -1;
@@ -94,13 +99,12 @@ namespace PeterDB {
 
         INFO("Reading record of size=%hu from page=%hu, slot=%hu\n", serializedRecordLengthBytes, rid.pageNum,
                rid.slotNum);
-        void *serializedRecord = malloc(serializedRecordLengthBytes);
-        m_page.readRecord(slotNum, serializedRecord);
+        RecordAndMetadata recordAndMetadata;
+        m_page.readRecord(&recordAndMetadata, slotNum);
 
         // 4. *data <- transform to unserializedFormat(serializedRecord)
-        RecordTransformer::deserialize(recordDescriptor, serializedRecord, data);
+        RecordTransformer::deserialize(recordDescriptor, recordAndMetadata.getRecordDataPtr(), data);
 
-        free(serializedRecord);
         return 0;
     }
 

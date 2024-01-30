@@ -16,10 +16,10 @@ namespace PeterDB {
         setSlotCount(0);
     }
 
-    bool Page::canInsertRecord(unsigned short recordLengthBytes) {
+    bool Page::canInsertRecord(unsigned short recordDataLengthBytes) {
         unsigned short availableBytes = getFreeByteCount();
         // account for the new slot metadata that we need to write after inserting a new record
-        return availableBytes >= (recordLengthBytes
+        return availableBytes >= (recordDataLengthBytes
                                   + RecordAndMetadata::RECORD_METADATA_LENGTH_BYTES + Slot::SLOT_METADATA_LENGTH_BYTES);
     }
 
@@ -48,8 +48,8 @@ namespace PeterDB {
         setFreeByteCount(getFreeByteCount() - recordAndMetadata->getRecordAndMetadataLength() -
                          Slot::SLOT_METADATA_LENGTH_BYTES);
 
-        INFO("Inserted record of length=%hu into slot=%hu. Free bytes avlbl=%hu\n",
-             recordAndMetadata->getRecordAndMetadataLength(), recordAndMetadata->getSlotNumber(), getFreeByteCount());
+        INFO("Inserted record of length=%hu, dataLength=%hu into slot=%hu. Free bytes avlbl=%hu\n",
+             recordAndMetadata->getRecordAndMetadataLength(), recordAndMetadata->getRecordDataLength(), recordAndMetadata->getSlotNumber(), getFreeByteCount());
     }
 
     void Page::readRecord(RecordAndMetadata *recordAndMetadata, unsigned short slotNum) {
@@ -150,24 +150,26 @@ namespace PeterDB {
         return getSlot(slotNumber).getRecordLengthBytes();
     }
 
-    unsigned short Page::generateSlotForInsertion(unsigned short recordLengthBytes) {
+    unsigned short Page::generateSlotForInsertion(unsigned short recordDataLengthBytes) {
         if (getSlotCount() == 0) {
             return 0;
         }
         for (unsigned short slotNum = 0; slotNum < getSlotCount(); ++slotNum) {
             Slot slot = getSlot(slotNum);
             if (slot.getRecordLengthBytes() == 0) {
-                shiftRecordsRight(slotNum + 1, recordLengthBytes);
+                shiftRecordsRight(slotNum + 1, recordDataLengthBytes + RecordAndMetadata::RECORD_METADATA_LENGTH_BYTES);
                 return slotNum;
             }
         }
         return getSlotCount();
     }
 
-    void Page::updateRecord(RecordAndMetadata recordAndMetadata, unsigned short slotNum) {
-        adjustSlotLength(slotNum, recordAndMetadata.getRecordAndMetadataLength());
-        setFreeByteCount(getFreeByteCount() - recordAndMetadata.getRecordAndMetadataLength());
-        insertRecord(&recordAndMetadata, slotNum);
+    void Page::updateRecord(RecordAndMetadata* recordAndMetadata, unsigned short slotNum) {
+        adjustSlotLength(slotNum, recordAndMetadata->getRecordAndMetadataLength());
+        // account for that fact that inserting a record shall decrease freeByteCount.
+        // So record the freeBytes "gained" by replacing the existing record.
+        setFreeByteCount(getFreeByteCount() + getSlot(slotNum).getRecordLengthBytes());
+        insertRecord(recordAndMetadata, slotNum);
     }
 
     void Page::adjustSlotLength(unsigned short slotNum, unsigned short recordAndMetadataLength) {
@@ -177,12 +179,12 @@ namespace PeterDB {
         int slotLengthGrowth = newLengthOfSlot - existingLengthOfSlot;
         if (slotLengthGrowth < 0) {
             // shrink the slot
-            shiftRecordsLeft(slotNum + 1, existingLengthOfSlot - newLengthOfSlot);
+            shiftRecordsLeft(slotNum + 1, -slotLengthGrowth);
         } else if (slotLengthGrowth > 0) {
             // grow the slot
-            shiftRecordsRight(slotNum + 1, newLengthOfSlot - existingLengthOfSlot);
+            shiftRecordsRight(slotNum + 1, slotLengthGrowth);
         } else {
-            // pleasent surprise! no change in slot length so, no action for us.
+            // pleasant co-incident! no change in slot length so, no action for us.
         }
     }
 }

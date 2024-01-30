@@ -6,11 +6,9 @@ typedef char byte;
 namespace PeterDB {
     class RecordAndMetadata {
     private:
-        static const unsigned short RECORD_METADATA_FIELD_COUNT = 2;
-        static const unsigned short RECORD_METADATA_FIELD_SIZE = sizeof(unsigned short);
-
         unsigned short m_pageNum;
         unsigned short m_slotNum;
+        bool m_isTombStone;
         void *m_recordData;
 
         unsigned short m_recordAndMetadataLength;
@@ -20,9 +18,9 @@ namespace PeterDB {
         RecordAndMetadata();
         ~RecordAndMetadata();
 
-        static const unsigned short RECORD_METADATA_LENGTH_BYTES = RECORD_METADATA_FIELD_COUNT * RECORD_METADATA_FIELD_SIZE;
+        static const unsigned short RECORD_METADATA_LENGTH_BYTES = (sizeof(unsigned short) * 2) + (sizeof(bool) * 1);
 
-        void init(unsigned short pageNum, unsigned short slotNum, unsigned short recordDataLength, void *recordData);
+        void init(unsigned short pageNum, unsigned short slotNum, bool isTombstone, unsigned short recordDataLength, void *recordData);
 
         void read(void *data, unsigned short recordAndMetadataLength);
 
@@ -32,9 +30,13 @@ namespace PeterDB {
 
         unsigned short getSlotNumber() const;
 
+        bool isTombstone() const;
+
         void *getRecordDataPtr() const;
 
         unsigned short getRecordAndMetadataLength() const;
+
+        unsigned short getRecordDataLength() const;
     };
 }
 

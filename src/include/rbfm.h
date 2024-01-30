@@ -120,7 +120,7 @@ namespace PeterDB {
 
         // Assume the RID does not change after an update
         RC updateRecord(FileHandle &fileHandle, const std::vector<Attribute> &recordDescriptor, const void *data,
-                        const RID &rid);
+                        const RID &existingRid);
 
         // Read an attribute given its name and the rid.
         RC readAttribute(FileHandle &fileHandle, const std::vector<Attribute> &recordDescriptor, const RID &rid,
@@ -145,7 +145,7 @@ namespace PeterDB {
         PagedFileManager *m_pagedFileManager;
         Page m_page;
 
-        int computePageNumForInsertion(unsigned short recordLength, FileHandle &fileHandle);
+        int computePageNumForInsertion(unsigned short recordDataLength, FileHandle &fileHandle);
     };
 
 } // namespace PeterDB

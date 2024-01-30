@@ -25,15 +25,15 @@ namespace PeterDB {
 
         void* getDataPtr();
 
-        bool canInsertRecord(unsigned short recordLengthBytes);
+        bool canInsertRecord(unsigned short recordDataLengthBytes);
 
-        unsigned short generateSlotForInsertion(unsigned short recordLengthBytes);
+        unsigned short generateSlotForInsertion(unsigned short recordDataLengthBytes);
 
         void insertRecord(RecordAndMetadata* recordAndMetadata, unsigned short slotNum);
 
         void readRecord(RecordAndMetadata* recordAndMetadata, unsigned short slotNum);
 
-        void updateRecord(RecordAndMetadata recordAndMetadata, unsigned short slotNum);
+        void updateRecord(RecordAndMetadata* recordAndMetadata, unsigned short slotNum);
 
         void deleteRecord(unsigned short slotNumber);
 

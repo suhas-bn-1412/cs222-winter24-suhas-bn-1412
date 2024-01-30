@@ -28,6 +28,8 @@ namespace PeterDB {
 
         void write(void *writeBuffer);
 
+        unsigned short getMPageNum() const;
+
         unsigned short getSlotNumber() const;
 
         void *getRecordDataPtr() const;

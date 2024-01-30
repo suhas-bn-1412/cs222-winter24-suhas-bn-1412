@@ -27,11 +27,13 @@ namespace PeterDB {
 
         bool canInsertRecord(unsigned short recordLengthBytes);
 
-        unsigned short computeSlotForInsertion(unsigned short recordLengthBytes);
+        unsigned short generateSlotForInsertion(unsigned short recordLengthBytes);
 
-        void insertRecord(RecordAndMetadata* recordAndMetadata);
+        void insertRecord(RecordAndMetadata* recordAndMetadata, unsigned short slotNum);
 
         void readRecord(RecordAndMetadata* recordAndMetadata, unsigned short slotNum);
+
+        void updateRecord(RecordAndMetadata recordAndMetadata, unsigned short slotNum);
 
         void deleteRecord(unsigned short slotNumber);
 
@@ -60,6 +62,8 @@ namespace PeterDB {
         void shiftRecordsLeft(int slotNumStart, unsigned short shiftOffsetBytes);
 
         void shiftRecordsRight(int slotNumStart, unsigned short shiftOffsetBytes);
+
+        void adjustSlotLength(unsigned short slotNum, unsigned short recordAndMetadataLength);
     };
 }
 

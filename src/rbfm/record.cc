@@ -52,3 +52,7 @@ unsigned short PeterDB::RecordAndMetadata::getSlotNumber() const {
 void *PeterDB::RecordAndMetadata::getRecordDataPtr() const {
     return m_recordData;
 }
+
+unsigned short PeterDB::RecordAndMetadata::getMPageNum() const {
+    return m_pageNum;
+}

@@ -23,7 +23,7 @@ namespace PeterDB {
                                   + RecordAndMetadata::RECORD_METADATA_LENGTH_BYTES + Slot::SLOT_METADATA_LENGTH_BYTES);
     }
 
-    void Page::insertRecord(RecordAndMetadata* recordAndMetadata) {
+    void Page::insertRecord(RecordAndMetadata *recordAndMetadata, unsigned short slotNum) {
         if (!canInsertRecord(recordAndMetadata->getRecordAndMetadataLength())) {
             ERROR("Cannot insert record and metadata of size=%hu into page having %hu bytes free\n",
                   recordAndMetadata->getRecordAndMetadataLength(),
@@ -31,7 +31,7 @@ namespace PeterDB {
         }
 
         // insert the record data into the page
-        unsigned short recordOffset = computeRecordOffset(recordAndMetadata->getSlotNumber());
+        unsigned short recordOffset = computeRecordOffset(slotNum);
         byte *recordStart = m_data + recordOffset;
         recordAndMetadata->write(recordStart);
 
@@ -45,18 +45,19 @@ namespace PeterDB {
             // this was a newly created slot.
             setSlotCount(getSlotCount() + 1);
         }
-        setFreeByteCount(getFreeByteCount() - recordAndMetadata->getRecordAndMetadataLength() - Slot::SLOT_METADATA_LENGTH_BYTES);
+        setFreeByteCount(getFreeByteCount() - recordAndMetadata->getRecordAndMetadataLength() -
+                         Slot::SLOT_METADATA_LENGTH_BYTES);
 
         INFO("Inserted record of length=%hu into slot=%hu. Free bytes avlbl=%hu\n",
              recordAndMetadata->getRecordAndMetadataLength(), recordAndMetadata->getSlotNumber(), getFreeByteCount());
     }
 
-    void Page::readRecord(RecordAndMetadata* recordAndMetadata, unsigned short slotNum) {
+    void Page::readRecord(RecordAndMetadata *recordAndMetadata, unsigned short slotNum) {
         Slot recordSlot = getSlot(slotNum);
         if (recordSlot.getRecordLengthBytes() == 0) {
             return; // this was a deleted record
         }
-        void *recordDataStart = (void*) (m_data + recordSlot.getRecordOffsetBytes());
+        void *recordDataStart = (void *) (m_data + recordSlot.getRecordOffsetBytes());
         recordAndMetadata->read(recordDataStart, recordSlot.getRecordLengthBytes());
     }
 
@@ -110,7 +111,7 @@ namespace PeterDB {
         return previousSlot.getRecordOffsetBytes() + previousSlot.getRecordLengthBytes();
     }
 
-    Slot Page::getSlot(unsigned short slotNum){
+    Slot Page::getSlot(unsigned short slotNum) {
         Slot slot((void *) (slotMetadataEnd - (Slot::SLOT_METADATA_LENGTH_BYTES * (slotNum + 1))));
         return slot;
     }
@@ -149,7 +150,7 @@ namespace PeterDB {
         return getSlot(slotNumber).getRecordLengthBytes();
     }
 
-    unsigned short Page::computeSlotForInsertion(unsigned short recordLengthBytes) {
+    unsigned short Page::generateSlotForInsertion(unsigned short recordLengthBytes) {
         if (getSlotCount() == 0) {
             return 0;
         }
@@ -161,5 +162,27 @@ namespace PeterDB {
             }
         }
         return getSlotCount();
+    }
+
+    void Page::updateRecord(RecordAndMetadata recordAndMetadata, unsigned short slotNum) {
+        adjustSlotLength(slotNum, recordAndMetadata.getRecordAndMetadataLength());
+        setFreeByteCount(getFreeByteCount() - recordAndMetadata.getRecordAndMetadataLength());
+        insertRecord(&recordAndMetadata, slotNum);
+    }
+
+    void Page::adjustSlotLength(unsigned short slotNum, unsigned short recordAndMetadataLength) {
+        Slot slot = getSlot(slotNum);
+        unsigned short existingLengthOfSlot = slot.getRecordLengthBytes();
+        unsigned short newLengthOfSlot = recordAndMetadataLength;
+        int slotLengthGrowth = newLengthOfSlot - existingLengthOfSlot;
+        if (slotLengthGrowth < 0) {
+            // shrink the slot
+            shiftRecordsLeft(slotNum + 1, existingLengthOfSlot - newLengthOfSlot);
+        } else if (slotLengthGrowth > 0) {
+            // grow the slot
+            shiftRecordsRight(slotNum + 1, newLengthOfSlot - existingLengthOfSlot);
+        } else {
+            // pleasent surprise! no change in slot length so, no action for us.
+        }
     }
 }

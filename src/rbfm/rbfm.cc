@@ -55,12 +55,17 @@ namespace PeterDB {
         assert(pageNumber != -1);
 
         if (pageNumber == fileHandle.getNumberOfPages()) {
+            // create and append a new page to the file
             m_page.eraseAndReset();
             fileHandle.appendPage(m_page.getDataPtr());
         }
 
         fileHandle.readPage(pageNumber, m_page.getDataPtr());
-        unsigned short slotNum = m_page.insertRecord(serializedRecord, serializedRecordLength);
+
+        unsigned short slotNum = m_page.generateSlotForInsertion(serializedRecordLength);
+        RecordAndMetadata recordAndMetadata;
+        recordAndMetadata.init(pageNumber, slotNum, false, serializedRecordLength, serializedRecord);
+        m_page.insertRecord(&recordAndMetadata, slotNum);
         rid.pageNum = pageNumber;
         rid.slotNum = slotNum;
         INFO("Inserted record into page=%hu, slot=%hu\n", rid.pageNum, rid.slotNum);
@@ -78,7 +83,7 @@ namespace PeterDB {
         // 1. pageNo = RID.pageNo
         PageNum pageNum = rid.pageNum;
 
-        // 2. Page page = PFM.readPage(pageNo)
+        // 2. Load the page
         if (0 != fileHandle.readPage(pageNum, m_page.getDataPtr())) {
             ERROR("Error while reading page %d\n", pageNum);
             return -1;
@@ -94,13 +99,25 @@ namespace PeterDB {
 
         INFO("Reading record of size=%hu from page=%hu, slot=%hu\n", serializedRecordLengthBytes, rid.pageNum,
                rid.slotNum);
-        void *serializedRecord = malloc(serializedRecordLengthBytes);
-        m_page.readRecord(slotNum, serializedRecord);
+        RecordAndMetadata recordAndMetadata;
+        m_page.readRecord(&recordAndMetadata, slotNum);
+
+        while (recordAndMetadata.isTombstone()) {
+            RID updatedRid;
+            memcpy(&updatedRid, recordAndMetadata.getRecordDataPtr(), sizeof(RID));
+
+            // load the page of the updated record into memory
+            if (0 != fileHandle.readPage(updatedRid.pageNum, m_page.getDataPtr())) {
+                ERROR("Error while reading page %d\n", pageNum);
+                return -1;
+            }
+
+            m_page.readRecord(&recordAndMetadata, slotNum);
+        }
 
         // 4. *data <- transform to unserializedFormat(serializedRecord)
-        RecordTransformer::deserialize(recordDescriptor, serializedRecord, data);
+        RecordTransformer::deserialize(recordDescriptor, recordAndMetadata.getRecordDataPtr(), data);
 
-        free(serializedRecord);
         return 0;
     }
 
@@ -131,8 +148,67 @@ namespace PeterDB {
     }
 
     RC RecordBasedFileManager::updateRecord(FileHandle &fileHandle, const std::vector<Attribute> &recordDescriptor,
-                                            const void *data, const RID &rid) {
-        return -1;
+                                            const void *data, const RID &existingRid) {
+        // 1. serialize the record data
+        unsigned short serializedRecordLength = RecordTransformer::serialize(recordDescriptor, data, nullptr);
+        void *serializedRecord = malloc(serializedRecordLength);
+        assert(nullptr != serializedRecord);
+        RecordTransformer::serialize(recordDescriptor, data, serializedRecord);
+
+        // 2. Load the record's page into memory
+        fileHandle.readPage(existingRid.pageNum, m_page.getDataPtr());
+
+        // 3. If the new record still fits into the original page, just update the record in-place.
+        unsigned short oldLengthOfRecord = m_page.getRecordLengthBytes(existingRid.slotNum);
+        unsigned short newLengthOfRecord = serializedRecordLength + RecordAndMetadata::RECORD_METADATA_LENGTH_BYTES;
+        INFO("Updating record in page=%hu, slot=%hu. Old size=%hu, new size=%hu\n",
+             existingRid.pageNum, existingRid.slotNum, oldLengthOfRecord,
+             newLengthOfRecord);
+
+        int growthInRecordLength = newLengthOfRecord - oldLengthOfRecord;
+        if (growthInRecordLength <= 0 || m_page.canInsertRecord(growthInRecordLength - 4)) {
+            // the updated record fits into the original page
+            RecordAndMetadata recordAndMetadata;
+            recordAndMetadata.init(existingRid.pageNum, existingRid.slotNum, false, serializedRecordLength, serializedRecord);
+            m_page.updateRecord(&recordAndMetadata, existingRid.slotNum);
+            fileHandle.writePage(existingRid.pageNum, m_page.getDataPtr());
+
+        } else {
+//          the updated record does not fit into the original page.
+            //todo:
+//1.        'clean-insert' the new record into any oher page.
+            int updatedPageNum = computePageNumForInsertion(serializedRecordLength, fileHandle);
+            assert(updatedPageNum != -1);
+
+            if (updatedPageNum == fileHandle.getNumberOfPages()) {
+                // create and append a new page to the file
+                m_page.eraseAndReset();
+                fileHandle.appendPage(m_page.getDataPtr());
+            }
+
+            fileHandle.readPage(updatedPageNum, m_page.getDataPtr());
+
+            unsigned short updatedSlotNum = m_page.generateSlotForInsertion(serializedRecordLength);
+            RecordAndMetadata freshRecordAndMetadata;
+            freshRecordAndMetadata.init(existingRid.pageNum, existingRid.slotNum, false, serializedRecordLength, serializedRecord);
+            m_page.insertRecord(&freshRecordAndMetadata, updatedSlotNum);
+            fileHandle.writePage(updatedPageNum, m_page.getDataPtr());
+
+            RID updatedRid;
+            updatedRid.pageNum = updatedPageNum;
+            updatedRid.slotNum = updatedSlotNum;
+
+//            2. tombstone the old record, and link it to the new record.
+            RecordAndMetadata tombstoneRecordAndMetadata;
+            tombstoneRecordAndMetadata.init(existingRid.pageNum, existingRid.slotNum, true, sizeof(RID), &updatedRid);
+
+            fileHandle.readPage(existingRid.pageNum, m_page.getDataPtr());
+            m_page.updateRecord(&tombstoneRecordAndMetadata, existingRid.slotNum);
+            fileHandle.writePage(existingRid.pageNum, m_page.getDataPtr());
+        }
+
+        free(serializedRecord);
+        return 0;
     }
 
     RC RecordBasedFileManager::readAttribute(FileHandle &fileHandle, const std::vector<Attribute> &recordDescriptor,
@@ -147,7 +223,7 @@ namespace PeterDB {
         return -1;
     }
 
-    int RecordBasedFileManager::computePageNumForInsertion(unsigned short recordLength, FileHandle &fileHandle) {
+    int RecordBasedFileManager::computePageNumForInsertion(unsigned short recordDataLength, FileHandle &fileHandle) {
         if (fileHandle.getNumberOfPages() == 0) {
             return 0;
         }
@@ -156,7 +232,7 @@ namespace PeterDB {
                 ERROR("Error while reading page %d\n", potentialPageNum);
                 return -1;
             }
-            if (m_page.canInsertRecord(recordLength)) {
+            if (m_page.canInsertRecord(recordDataLength)) {
                 return potentialPageNum;
             }
         }

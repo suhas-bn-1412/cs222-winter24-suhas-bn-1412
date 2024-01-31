@@ -1,10 +1,12 @@
 #ifndef _rbfm_h_
 #define _rbfm_h_
 
+#include <map>
 #include <vector>
 
 #include "src/include/pfm.h"
 #include "src/include/page.h"
+#include "src/include/pageSelector.h"
 
 namespace PeterDB {
     // RecordAndMetadata ID
@@ -142,8 +144,9 @@ namespace PeterDB {
         RecordBasedFileManager &operator=(const RecordBasedFileManager &);          // Prevent assignment
 
     private:
-        PagedFileManager *m_pagedFileManager;
         Page m_page;
+        std::map<std::string, PageSelector*> m_pageSelectors;
+        PagedFileManager *m_pagedFileManager = nullptr;
 
         int computePageNumForInsertion(unsigned short recordDataLength, FileHandle &fileHandle);
     };

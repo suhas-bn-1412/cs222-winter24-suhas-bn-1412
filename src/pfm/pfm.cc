@@ -109,10 +109,10 @@ namespace PeterDB {
 
         unsigned *metadata = (unsigned *) data;
         if (metadata[0] == (metadata[1] ^ metadata[2] ^ metadata[3] ^ metadata[4])) {
-            m_curPagesInFile = metadata[1];
-            readPageCounter = metadata[2];
-            writePageCounter = metadata[3];
-            appendPageCounter = metadata[4];
+            readPageCounter = metadata[1];
+            writePageCounter = metadata[2];
+            appendPageCounter = metadata[3];
+            hiddenPagesFromUpperLayer = metadata[4];
         } else {
             ERROR("Error while reading metadata\n");
         }
@@ -122,10 +122,10 @@ namespace PeterDB {
     void FileHandle::writeMetadataToDisk() {
         unsigned *data = (unsigned *) malloc(PAGE_SIZE);
         memset((void *) data, 0, PAGE_SIZE);
-        data[1] = m_curPagesInFile;
-        data[2] = readPageCounter;
-        data[3] = writePageCounter;
-        data[4] = appendPageCounter;
+        data[1] = readPageCounter;
+        data[2] = writePageCounter;
+        data[3] = appendPageCounter;
+        data[4] = hiddenPagesFromUpperLayer;
 
         data[0] = (data[1] ^ data[2] ^ data[3] ^ data[4]);
 
@@ -179,7 +179,7 @@ namespace PeterDB {
         // pageNum should be less than the number of pages present
         // pages are 0 indexed from user pov, so if pageNum is 0, then
         // user is asking to read page 0, and totalPages might be 1
-        if (pageNum >= m_curPagesInFile) {
+        if (pageNum >= appendPageCounter) {
             ERROR("FileHandle::readPage - page %d not found", pageNum);
             return -1;
         }
@@ -207,7 +207,7 @@ namespace PeterDB {
         assert(nullptr != data);
         assert(nullptr != m_fstream);
 
-        if (pageNum >= m_curPagesInFile) {
+        if (pageNum >= appendPageCounter) {
             ERROR("FileHandle::writePage - page %d not found", pageNum);
             return -1;
         }
@@ -242,13 +242,17 @@ namespace PeterDB {
             return -1;
         }
 
-        m_curPagesInFile++;
         appendPageCounter++;
         return 0;
     }
 
     unsigned FileHandle::getNumberOfPages() {
-        return m_curPagesInFile;
+        assert(appendPageCounter >= hiddenPagesFromUpperLayer);
+        return appendPageCounter-hiddenPagesFromUpperLayer;
+    }
+
+    unsigned FileHandle::getNextPageNum() {
+        return appendPageCounter;
     }
 
     RC FileHandle::collectCounterValues(unsigned &readPageCount, unsigned &writePageCount, unsigned &appendPageCount) {
@@ -256,6 +260,10 @@ namespace PeterDB {
         writePageCount = writePageCounter;
         appendPageCount = appendPageCounter;
         return 0;
+    }
+
+    void FileHandle::setHiddenPagesUsed(unsigned n) {
+        hiddenPagesFromUpperLayer = n;
     }
 
 } // namespace PeterDB

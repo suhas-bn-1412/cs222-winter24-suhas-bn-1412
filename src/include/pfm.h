@@ -47,6 +47,7 @@ namespace PeterDB {
         RC writePage(PageNum pageNum, const void *data);                    // Write a specific page
         RC appendPage(const void *data);                                    // Append a specific page
         unsigned getNumberOfPages();                                        // Get the number of pages in the file
+        unsigned getNextPageNum();
         RC collectCounterValues(unsigned &readPageCount, unsigned &writePageCount,
                                 unsigned &appendPageCount);                 // Put current counter values into variables
 
@@ -57,12 +58,15 @@ namespace PeterDB {
         RC openFile();
         RC closeFile();
 
+        void setHiddenPagesUsed(unsigned n);
+
     private:
-        void loadMetadataFromDisk();
-        void writeMetadataToDisk();
         FILE* m_fstream = nullptr;
         std::string m_fileName = "";
-        unsigned m_curPagesInFile = 0;
+        unsigned hiddenPagesFromUpperLayer = 0;
+
+        void loadMetadataFromDisk();
+        void writeMetadataToDisk();
     };
 
 } // namespace PeterDB

@@ -1,3 +1,3 @@
-add_library(rbfm rbfm.cc page.cc recordTransformer.cc slot.cc record.cc)
+add_library(rbfm rbfm.cc page.cc recordTransformer.cc slot.cc record.cc pageSelector.cc)
 add_dependencies(rbfm pfm googlelog)
 target_link_libraries(rbfm pfm glog)

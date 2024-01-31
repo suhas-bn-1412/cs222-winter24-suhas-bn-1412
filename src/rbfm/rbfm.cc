@@ -30,11 +30,38 @@ namespace PeterDB {
     }
 
     RC RecordBasedFileManager::openFile(const std::string &fileName, FileHandle &fileHandle) {
-        return m_pagedFileManager->openFile(fileName, fileHandle);
+        auto retCode = m_pagedFileManager->openFile(fileName, fileHandle);
+        if (0 != retCode) {
+            return retCode;
+        }
+
+        // Check if PageSelector for this filename already exists
+        auto it = m_pageSelectors.find(fileName);
+        if (it == m_pageSelectors.end()) {
+            // If not, create a new PageSelector and add it to the map
+            PageSelector* pageSelector = new PageSelector(fileName, &fileHandle);
+            m_pageSelectors[fileName] = pageSelector;
+            pageSelector->readMetadataFromDisk();
+        }
+
+        return 0;
     }
 
     RC RecordBasedFileManager::closeFile(FileHandle &fileHandle) {
-        return m_pagedFileManager->closeFile(fileHandle);
+        // Check if PageSelector for this filename exists
+        auto it = m_pageSelectors.find(fileHandle.getFileName());
+        if (it != m_pageSelectors.end()) {
+            // Write metadata to disk and delete the PageSelector
+            it->second->writeMetadataToDisk();
+            delete it->second;
+            m_pageSelectors.erase(it);
+        }
+
+        auto retCode = m_pagedFileManager->closeFile(fileHandle);
+        if (0 != retCode) {
+            return retCode;
+        }
+        return 0;
     }
 
     RC RecordBasedFileManager::insertRecord(FileHandle &fileHandle, const std::vector<Attribute> &recordDescriptor,
@@ -48,24 +75,28 @@ namespace PeterDB {
         assert(nullptr != serializedRecord);
         RecordTransformer::serialize(recordDescriptor, data, serializedRecord);
 
+        unsigned prevPages = fileHandle.getNextPageNum();
+
         // 2. Determine pageNo
         //      a. scan all existing pages for sufficient space
         //      b. create (append to file) a new page if needed
-        int pageNumber = computePageNumForInsertion(serializedRecordLength, fileHandle);
+        assert(m_pageSelectors.end() != m_pageSelectors.find(fileHandle.getFileName()));
+        int pageNumber = m_pageSelectors[fileHandle.getFileName()]->selectPage(serializedRecordLength + Slot::SLOT_LENGTH_BYTES);
         assert(pageNumber != -1);
 
-        if (pageNumber == fileHandle.getNumberOfPages()) {
-            // create and append a new page to the file
-            m_page.eraseAndReset();
-            fileHandle.appendPage(m_page.getDataPtr());
+        if (prevPages < fileHandle.getNextPageNum()) {
+            // meaning there was new page added
+            // so initialise the available space metadata for that page
+            m_page.initPageMetadata();
         }
-
+        
         fileHandle.readPage(pageNumber, m_page.getDataPtr());
 
         unsigned short slotNum = m_page.generateSlotForInsertion(serializedRecordLength);
         RecordAndMetadata recordAndMetadata;
         recordAndMetadata.init(pageNumber, slotNum, false, serializedRecordLength, serializedRecord);
         m_page.insertRecord(&recordAndMetadata, slotNum);
+
         rid.pageNum = pageNumber;
         rid.slotNum = slotNum;
         INFO("Inserted record into page=%hu, slot=%hu\n", rid.pageNum, rid.slotNum);
@@ -131,7 +162,7 @@ namespace PeterDB {
     RC RecordBasedFileManager::deleteRecord(FileHandle &fileHandle, const std::vector<Attribute> &recordDescriptor,
                                             const RID &rid) {
 //        1. read the page indicated by rid.pageNum into memory (m_page)
-        assert(rid.pageNum >= 0 && rid.pageNum < fileHandle.getNumberOfPages());
+        assert(rid.pageNum >= 0 && rid.pageNum < fileHandle.getNextPageNum());
         fileHandle.readPage(rid.pageNum, m_page.getDataPtr());
 
 //        2. page.deleteRecord(rid.slotNum)
@@ -221,22 +252,6 @@ namespace PeterDB {
                                     const std::vector<std::string> &attributeNames,
                                     RBFM_ScanIterator &rbfm_ScanIterator) {
         return -1;
-    }
-
-    int RecordBasedFileManager::computePageNumForInsertion(unsigned short recordDataLength, FileHandle &fileHandle) {
-        if (fileHandle.getNumberOfPages() == 0) {
-            return 0;
-        }
-        for (int potentialPageNum = fileHandle.getNumberOfPages() - 1; potentialPageNum >= 0; potentialPageNum--) {
-            if (fileHandle.readPage(potentialPageNum, m_page.getDataPtr()) != 0) {
-                ERROR("Error while reading page %d\n", potentialPageNum);
-                return -1;
-            }
-            if (m_page.canInsertRecord(recordDataLength)) {
-                return potentialPageNum;
-            }
-        }
-        return fileHandle.getNumberOfPages();
     }
 
 } // namespace PeterDB

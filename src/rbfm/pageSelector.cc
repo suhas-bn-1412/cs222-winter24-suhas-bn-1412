@@ -295,4 +295,24 @@ unsigned PageSelector::createPageForPageOccupancyInfo() {
     return newPageNum;
 }
 
+void PageSelector::decrementAvailableSpace(const unsigned pageNum, int diff) {
+    
+    bool pageFound = false;
+
+    for (auto &pageInfo : m_pageOccupancyInfo) {
+        for (auto &pageOcc : pageInfo.second) {
+            if (pageNum == pageOcc.pageNum) {
+                pageOcc.availableSpace -= diff;
+                pageFound = true;
+                break;
+            }
+        }
+        if (pageFound) {
+            heapify(pageInfo.second);
+            break;
+        }
+    }
+    assert(true == pageFound);
+}
+
 }

@@ -148,7 +148,7 @@ namespace PeterDB {
         std::map<std::string, PageSelector*> m_pageSelectors;
         PagedFileManager *m_pagedFileManager = nullptr;
 
-        int computePageNumForInsertion(unsigned short recordDataLength, FileHandle &fileHandle);
+        unsigned computePageNumForInsertion(unsigned recordLength, FileHandle &fileHandle);
     };
 
 } // namespace PeterDB

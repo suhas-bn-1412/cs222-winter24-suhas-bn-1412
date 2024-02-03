@@ -1,6 +1,7 @@
 #include "src/include/rbfm.h"
-#include "src/include/recordTransformer.h"
 #include "src/include/util.h"
+#include "src/include/slot.h"
+#include "src/include/recordTransformer.h"
 
 #include <assert.h>
 #include <iostream>
@@ -75,20 +76,7 @@ namespace PeterDB {
         assert(nullptr != serializedRecord);
         RecordTransformer::serialize(recordDescriptor, data, serializedRecord);
 
-        unsigned prevPages = fileHandle.getNextPageNum();
-
-        // 2. Determine pageNo
-        //      a. scan all existing pages for sufficient space
-        //      b. create (append to file) a new page if needed
-        assert(m_pageSelectors.end() != m_pageSelectors.find(fileHandle.getFileName()));
-        int pageNumber = m_pageSelectors[fileHandle.getFileName()]->selectPage(serializedRecordLength + Slot::SLOT_LENGTH_BYTES);
-        assert(pageNumber != -1);
-
-        if (prevPages < fileHandle.getNextPageNum()) {
-            // meaning there was new page added
-            // so initialise the available space metadata for that page
-            m_page.initPageMetadata();
-        }
+        unsigned pageNumber = computePageNumForInsertion(serializedRecordLength, fileHandle);
         
         fileHandle.readPage(pageNumber, m_page.getDataPtr());
 
@@ -165,6 +153,8 @@ namespace PeterDB {
         assert(rid.pageNum >= 0 && rid.pageNum < fileHandle.getNextPageNum());
         fileHandle.readPage(rid.pageNum, m_page.getDataPtr());
 
+        // m_pageSelectors[fileHandle.getFileName()]->decrementAvailableSpace(rid.pageNum, -1 * m_page.getRecordLengthBytes(rid.slotNum));
+
 //        2. page.deleteRecord(rid.slotNum)
         m_page.deleteRecord(rid.slotNum);
 
@@ -191,7 +181,7 @@ namespace PeterDB {
 
         // 3. If the new record still fits into the original page, just update the record in-place.
         unsigned short oldLengthOfRecord = m_page.getRecordLengthBytes(existingRid.slotNum);
-        unsigned short newLengthOfRecord = serializedRecordLength + RecordAndMetadata::RECORD_METADATA_LENGTH_BYTES;
+        unsigned short newLengthOfRecord = serializedRecordLength;
         INFO("Updating record in page=%hu, slot=%hu. Old size=%hu, new size=%hu\n",
              existingRid.pageNum, existingRid.slotNum, oldLengthOfRecord,
              newLengthOfRecord);
@@ -203,6 +193,7 @@ namespace PeterDB {
             recordAndMetadata.init(existingRid.pageNum, existingRid.slotNum, false, serializedRecordLength, serializedRecord);
             m_page.updateRecord(&recordAndMetadata, existingRid.slotNum);
             fileHandle.writePage(existingRid.pageNum, m_page.getDataPtr());
+            // m_pageSelectors[fileHandle.getFileName()]->decrementAvailableSpace(existingRid.pageNum, growthInRecordLength);
 
         } else {
 //          the updated record does not fit into the original page.
@@ -210,12 +201,6 @@ namespace PeterDB {
 //1.        'clean-insert' the new record into any oher page.
             int updatedPageNum = computePageNumForInsertion(serializedRecordLength, fileHandle);
             assert(updatedPageNum != -1);
-
-            if (updatedPageNum == fileHandle.getNumberOfPages()) {
-                // create and append a new page to the file
-                m_page.eraseAndReset();
-                fileHandle.appendPage(m_page.getDataPtr());
-            }
 
             fileHandle.readPage(updatedPageNum, m_page.getDataPtr());
 
@@ -236,6 +221,7 @@ namespace PeterDB {
             fileHandle.readPage(existingRid.pageNum, m_page.getDataPtr());
             m_page.updateRecord(&tombstoneRecordAndMetadata, existingRid.slotNum);
             fileHandle.writePage(existingRid.pageNum, m_page.getDataPtr());
+            // m_pageSelectors[fileHandle.getFileName()]->decrementAvailableSpace(existingRid.pageNum, sizeof(RID) - oldLengthOfRecord);
         }
 
         free(serializedRecord);
@@ -252,6 +238,23 @@ namespace PeterDB {
                                     const std::vector<std::string> &attributeNames,
                                     RBFM_ScanIterator &rbfm_ScanIterator) {
         return -1;
+    }
+
+    unsigned RecordBasedFileManager::computePageNumForInsertion(unsigned recordLength, FileHandle &fileHandle) {
+        unsigned prevPages = fileHandle.getNextPageNum();
+
+        assert(m_pageSelectors.end() != m_pageSelectors.find(fileHandle.getFileName()));
+        int pageNumber = m_pageSelectors[fileHandle.getFileName()]->selectPage(recordLength +
+                                                                               RecordAndMetadata::RECORD_METADATA_LENGTH_BYTES +
+                                                                               Slot::SLOT_METADATA_LENGTH_BYTES);
+        assert(pageNumber != -1);
+
+        if (prevPages < fileHandle.getNextPageNum()) {
+            // meaning there was new page added
+            // so initialise the available space metadata for that page
+            m_page.eraseAndReset();
+        }
+        return pageNumber;
     }
 
 } // namespace PeterDB

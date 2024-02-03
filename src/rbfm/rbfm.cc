@@ -153,7 +153,7 @@ namespace PeterDB {
         assert(rid.pageNum >= 0 && rid.pageNum < fileHandle.getNextPageNum());
         fileHandle.readPage(rid.pageNum, m_page.getDataPtr());
 
-        // m_pageSelectors[fileHandle.getFileName()]->decrementAvailableSpace(rid.pageNum, -1 * m_page.getRecordLengthBytes(rid.slotNum));
+        m_pageSelectors[fileHandle.getFileName()]->decrementAvailableSpace(rid.pageNum, -1 * m_page.getSlot(rid.slotNum).getRecordLengthBytes());
 
 //        2. page.deleteRecord(rid.slotNum)
         m_page.deleteRecord(rid.slotNum);
@@ -193,7 +193,7 @@ namespace PeterDB {
             recordAndMetadata.init(existingRid.pageNum, existingRid.slotNum, false, serializedRecordLength, serializedRecord);
             m_page.updateRecord(&recordAndMetadata, existingRid.slotNum);
             fileHandle.writePage(existingRid.pageNum, m_page.getDataPtr());
-            // m_pageSelectors[fileHandle.getFileName()]->decrementAvailableSpace(existingRid.pageNum, growthInRecordLength);
+            m_pageSelectors[fileHandle.getFileName()]->decrementAvailableSpace(existingRid.pageNum, growthInRecordLength);
 
         } else {
 //          the updated record does not fit into the original page.
@@ -221,7 +221,7 @@ namespace PeterDB {
             fileHandle.readPage(existingRid.pageNum, m_page.getDataPtr());
             m_page.updateRecord(&tombstoneRecordAndMetadata, existingRid.slotNum);
             fileHandle.writePage(existingRid.pageNum, m_page.getDataPtr());
-            // m_pageSelectors[fileHandle.getFileName()]->decrementAvailableSpace(existingRid.pageNum, sizeof(RID) - oldLengthOfRecord);
+            m_pageSelectors[fileHandle.getFileName()]->decrementAvailableSpace(existingRid.pageNum, sizeof(RID) - oldLengthOfRecord);
         }
 
         free(serializedRecord);

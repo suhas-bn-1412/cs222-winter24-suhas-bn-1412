@@ -41,6 +41,8 @@ namespace PeterDB {
 
         void eraseAndReset();
 
+        Slot getSlot(unsigned short slotNum);
+
     private:
         byte *m_data = new byte[PAGE_SIZE];
         unsigned short* freeByteCount = (unsigned short *) (m_data + PAGE_SIZE - PAGE_METADATA_SIZE) + 1;
@@ -52,8 +54,6 @@ namespace PeterDB {
         unsigned short getSlotCount();
 
         unsigned short computeRecordOffset(unsigned short slotNumber);
-
-        Slot getSlot(unsigned short slotNum);
 
         void setFreeByteCount(unsigned short numBytesFree);
 

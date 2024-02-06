@@ -252,8 +252,10 @@ namespace PeterDB {
         }
         assert(attrInfo.name != "");
 
+        auto nullFlagSz = (recordDescriptor.size() + 7) / 8;
+
         // to read varchar we need 4 extra byte in the beginning to know the length of it
-        void *dataToBeRead = malloc((attrInfo.type == TypeVarChar) ? (VARCHAR_ATTR_LEN_SZ + attrInfo.length) : attrInfo.length);
+        void *dataToBeRead = malloc(nullFlagSz + ((attrInfo.type == TypeVarChar) ? (VARCHAR_ATTR_LEN_SZ + attrInfo.length) : attrInfo.length));
         assert(nullptr != dataToBeRead);
 
         auto rr = readRecordWithAttrFilter(fileHandle, recordDescriptor, attrNames, rid, dataToBeRead);
@@ -263,6 +265,8 @@ namespace PeterDB {
             return rr;
         }
 
+        void *tmp = dataToBeRead;
+        dataToBeRead = (void*)( (char*)dataToBeRead + nullFlagSz );
         if (TypeVarChar == attrInfo.type) {
             auto len = *( (uint32_t*) dataToBeRead );
             memmove(data, (void*)( (char*) dataToBeRead + VARCHAR_ATTR_LEN_SZ ), len);
@@ -270,7 +274,7 @@ namespace PeterDB {
             memmove(data, dataToBeRead, INT_SZ);
         }
 
-        free(dataToBeRead);
+        free(tmp);
         return 0;
     }
 

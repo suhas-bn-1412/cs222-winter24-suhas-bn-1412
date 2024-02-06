@@ -180,15 +180,13 @@ void PeterDB::RecordTransformer::deserialize(const std::vector<Attribute> &recor
         // attributes, only then write that attribute into the data
         bool projectAttr = (attributeNames.end() != std::find(attributeNames.begin(), attributeNames.end(), attr.name));
 
-        if (!isNull) {
+        if (projectAttr && !isNull) {
 
             switch (attr.type) {
                 case TypeInt:
                     assert(INT_SZ == (attrEnd-attrStart));
 
-                    if (projectAttr) {
-                        memmove(dataPtr, (const void*)((const char*)serializedRecord + attrStart), INT_SZ);
-                    }
+                    memmove(dataPtr, (const void*)((const char*)serializedRecord + attrStart), INT_SZ);
                     dataPtr = (void*)((char*)dataPtr + INT_SZ);
 
                     break;
@@ -196,9 +194,7 @@ void PeterDB::RecordTransformer::deserialize(const std::vector<Attribute> &recor
                 case TypeReal:
                     assert(REAL_SZ == (attrEnd-attrStart));
 
-                    if (projectAttr) {
-                        memmove(dataPtr, (const void*)((const char*)serializedRecord + attrStart), REAL_SZ);
-                    }
+                    memmove(dataPtr, (const void*)((const char*)serializedRecord + attrStart), REAL_SZ);
                     dataPtr = (void*)((char*)dataPtr + REAL_SZ);
 
                     break;
@@ -206,14 +202,10 @@ void PeterDB::RecordTransformer::deserialize(const std::vector<Attribute> &recor
                 case TypeVarChar:
                     attrSize = attrEnd - attrStart;
 
-                    if (projectAttr) {
-                        memmove(dataPtr, &attrSize, VARCHAR_ATTR_LEN_SZ);
-                    }
+                    memmove(dataPtr, &attrSize, VARCHAR_ATTR_LEN_SZ);
                     dataPtr = (void*)((char*)dataPtr + VARCHAR_ATTR_LEN_SZ);
 
-                    if (projectAttr) {
-                        memmove(dataPtr, (const void*)((const char*)serializedRecord + attrStart), attrSize);
-                    }
+                    memmove(dataPtr, (const void*)((const char*)serializedRecord + attrStart), attrSize);
                     dataPtr = (void*)((char*)dataPtr + attrSize);
 
                     break;

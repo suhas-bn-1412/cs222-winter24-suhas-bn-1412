@@ -6,9 +6,6 @@
 
 #define ATTR_COUNT_FIELD_SZ sizeof(uint16_t)
 #define ATTR_OFFSET_SZ sizeof(uint16_t)
-#define INT_SZ 4
-#define REAL_SZ 4
-#define VARCHAR_ATTR_SZ 4
 
 // given the null flags and the attribute number, returns True if the
 // attribute is defined as null in the flag
@@ -104,7 +101,7 @@ uint32_t PeterDB::RecordTransformer::serialize(const std::vector<Attribute> &rec
 
                 case TypeVarChar:
                     attrSize = *((uint32_t*)dataPtr);
-                    dataPtr = (void*)((char*)dataPtr + VARCHAR_ATTR_SZ);
+                    dataPtr = (void*)((char*)dataPtr + VARCHAR_ATTR_LEN_SZ);
 
                     if (serializeData) {
                         memmove(serializedDataPtr, dataPtr, attrSize);
@@ -145,6 +142,7 @@ uint32_t PeterDB::RecordTransformer::serialize(const std::vector<Attribute> &rec
 }
 
 void PeterDB::RecordTransformer::deserialize(const std::vector<Attribute> &recordDescriptor,
+                                             const std::vector<std::string> &attributeNames,
                                              const void *serializedRecord,
                                              void *recordData) {
     uint16_t attrCount = recordDescriptor.size();
@@ -178,13 +176,19 @@ void PeterDB::RecordTransformer::deserialize(const std::vector<Attribute> &recor
         bool isNull = isAttrNull(recordData, currAttr, attrCount);
         attrEnd = attrOffsetData[currAttr-1];
 
+        // only if the attribute name is present in the list of projected
+        // attributes, only then write that attribute into the data
+        bool projectAttr = (attributeNames.end() != std::find(attributeNames.begin(), attributeNames.end(), attr.name));
+
         if (!isNull) {
 
             switch (attr.type) {
                 case TypeInt:
                     assert(INT_SZ == (attrEnd-attrStart));
 
-                    memmove(dataPtr, (const void*)((const char*)serializedRecord + attrStart), INT_SZ);
+                    if (projectAttr) {
+                        memmove(dataPtr, (const void*)((const char*)serializedRecord + attrStart), INT_SZ);
+                    }
                     dataPtr = (void*)((char*)dataPtr + INT_SZ);
 
                     break;
@@ -192,7 +196,9 @@ void PeterDB::RecordTransformer::deserialize(const std::vector<Attribute> &recor
                 case TypeReal:
                     assert(REAL_SZ == (attrEnd-attrStart));
 
-                    memmove(dataPtr, (const void*)((const char*)serializedRecord + attrStart), REAL_SZ);
+                    if (projectAttr) {
+                        memmove(dataPtr, (const void*)((const char*)serializedRecord + attrStart), REAL_SZ);
+                    }
                     dataPtr = (void*)((char*)dataPtr + REAL_SZ);
 
                     break;
@@ -200,10 +206,14 @@ void PeterDB::RecordTransformer::deserialize(const std::vector<Attribute> &recor
                 case TypeVarChar:
                     attrSize = attrEnd - attrStart;
 
-                    memmove(dataPtr, &attrSize, VARCHAR_ATTR_SZ);
-                    dataPtr = (void*)((char*)dataPtr + VARCHAR_ATTR_SZ);
+                    if (projectAttr) {
+                        memmove(dataPtr, &attrSize, VARCHAR_ATTR_LEN_SZ);
+                    }
+                    dataPtr = (void*)((char*)dataPtr + VARCHAR_ATTR_LEN_SZ);
 
-                    memmove(dataPtr, (const void*)((const char*)serializedRecord + attrStart), attrSize);
+                    if (projectAttr) {
+                        memmove(dataPtr, (const void*)((const char*)serializedRecord + attrStart), attrSize);
+                    }
                     dataPtr = (void*)((char*)dataPtr + attrSize);
 
                     break;
@@ -255,9 +265,9 @@ void PeterDB::RecordTransformer::print(const std::vector<Attribute> &recordDescr
                     if (0 == attrSize) {
                         stream << "";
                     } else {
-                        stream.write((const char*)((char*)dataPtr + VARCHAR_ATTR_SZ), attrSize);
+                        stream.write((const char*)((char*)dataPtr + VARCHAR_ATTR_LEN_SZ), attrSize);
                     }
-                    dataPtr = (void*)((char*)dataPtr + (attrSize + VARCHAR_ATTR_SZ));
+                    dataPtr = (void*)((char*)dataPtr + (attrSize + VARCHAR_ATTR_LEN_SZ));
 
                     break;
 

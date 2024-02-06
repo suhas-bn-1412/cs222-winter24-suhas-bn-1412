@@ -7,6 +7,7 @@
 
 #include <cstdlib>
 #include <cstring>
+#include "src/include/pfm.h"
 #include "src/include/slot.h"
 #include "src/include/record.h"
 #include "src/include/util.h"
@@ -23,7 +24,9 @@ namespace PeterDB {
 
         void initPageMetadata(); // used to create an (initially) zero records page.
 
-        void* getDataPtr();
+        RC readPage(FileHandle &fileHandle, PageNum pageNum);
+
+        RC writePage(FileHandle &fileHandle, PageNum pageNum);
 
         bool canInsertRecord(unsigned short recordDataLengthBytes);
 
@@ -41,17 +44,20 @@ namespace PeterDB {
 
         void eraseAndReset();
 
+        unsigned short getSlotCount();
+
         Slot getSlot(unsigned short slotNum);
 
+        int getCurrentPage();
+
     private:
+        int m_currentPage = -1;
         byte *m_data = new byte[PAGE_SIZE];
         unsigned short* freeByteCount = (unsigned short *) (m_data + PAGE_SIZE - PAGE_METADATA_SIZE) + 1;
         unsigned short* slotCount = (unsigned short *) (m_data + PAGE_SIZE - PAGE_METADATA_SIZE);
         byte *slotMetadataEnd =  (m_data + PAGE_SIZE - PAGE_METADATA_SIZE);
 
         unsigned short getFreeByteCount();
-
-        unsigned short getSlotCount();
 
         unsigned short computeRecordOffset(unsigned short slotNumber);
 

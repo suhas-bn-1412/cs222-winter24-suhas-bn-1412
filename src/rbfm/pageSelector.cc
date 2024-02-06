@@ -315,4 +315,13 @@ void PageSelector::decrementAvailableSpace(const unsigned pageNum, int diff) {
     assert(true == pageFound);
 }
 
+bool PageSelector::isThisPageAMetadataPage(const PageNum &pageNum) {
+    for (int i=1; i < m_pageOccupancyMetadata[0]+1; i++) {
+        if(pageNum == m_pageOccupancyMetadata[i]) {
+            return true;
+        }
+    }
+    return false;
+}
+
 }

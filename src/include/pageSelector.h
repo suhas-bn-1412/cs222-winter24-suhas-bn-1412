@@ -27,6 +27,7 @@ class PageSelector {
     void writeMetadataToDisk();
     unsigned selectPage(const uint32_t& requiredBytes);
     void decrementAvailableSpace(unsigned pageNum, int diff);
+    bool isThisPageAMetadataPage(const PageNum &pageNum);
 
     private:
     std::string m_fileName = "";

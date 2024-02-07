@@ -16,6 +16,35 @@ namespace PeterDB {
         setSlotCount(0);
     }
 
+    int Page::getCurrentPage() {
+        return m_pageNum;
+    }
+
+    RC Page::readPage(FileHandle &fileHandle, PageNum pageNum) {
+        auto rp = fileHandle.readPage(pageNum, m_data);
+        if (0 != rp) {
+            return rp;
+        }
+
+        m_pageNum = pageNum;
+        return 0;
+    }
+
+    RC Page::writePage(FileHandle &fileHandle, PageNum pageNum) {
+        // write page should be called after previous operations with same page
+        // those previous operations should have made sure that the current page
+        // we have is the same as the pagenum passed to the writePage
+        assert(pageNum == m_pageNum);
+
+        auto wp = fileHandle.writePage(pageNum, m_data);
+        if (0 != wp) {
+            return wp;
+        }
+
+        m_pageNum = pageNum;
+        return 0;
+    }
+
     bool Page::canInsertRecord(unsigned short recordDataLengthBytes) {
         unsigned short availableBytes = getFreeByteCount();
         // account for the new slot metadata that we need to write after inserting a new record
@@ -97,10 +126,6 @@ namespace PeterDB {
 
     void Page::setSlotCount(unsigned short numSlotsInPage) {
         *slotCount = numSlotsInPage;
-    }
-
-    void *Page::getDataPtr() {
-        return (void *) m_data;
     }
 
     unsigned short Page::computeRecordOffset(unsigned short slotNumber) {

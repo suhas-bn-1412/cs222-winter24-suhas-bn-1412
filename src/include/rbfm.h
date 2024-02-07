@@ -1,10 +1,12 @@
 #ifndef _rbfm_h_
 #define _rbfm_h_
 
+#include <map>
 #include <vector>
 
 #include "src/include/pfm.h"
 #include "src/include/page.h"
+#include "src/include/pageSelector.h"
 
 namespace PeterDB {
     // RecordAndMetadata ID
@@ -54,6 +56,9 @@ namespace PeterDB {
     //  }
     //  rbfmScanIterator.close();
 
+    // forward declaration of RecordBasedFileManager
+    class RecordBasedFileManager;
+
     class RBFM_ScanIterator {
     public:
         RBFM_ScanIterator() = default;;
@@ -63,9 +68,34 @@ namespace PeterDB {
         // Never keep the results in the memory. When getNextRecord() is called,
         // a satisfying record needs to be fetched from the file.
         // "data" follows the same format as RecordBasedFileManager::insertRecord().
-        RC getNextRecord(RID &rid, void *data) { return RBFM_EOF; };
+        RC getNextRecord(RID &rid, void *data);
 
         RC close() { return -1; };
+
+        void init(RecordBasedFileManager *rbfm, FileHandle *fileHandle,
+             const std::vector<Attribute> &recordDescriptor, const std::string &conditionAttribute,
+             const CompOp compOp, const void *value, const std::vector<std::string> &attributeNames);
+    private:
+        // stores current RID that the scan iterator has returned to the caller
+        // when getNextRecord is called, we have to check next record in the same page
+        // or if we have scanned through all the records in that page, then give the
+        // RID from next page
+        RID m_currentRid;
+
+        // boolean flag to indicate whether the scanning has begun already
+        bool m_scanStarted = false;
+
+        bool m_initDone = false;
+        RecordBasedFileManager *m_rbfm = nullptr;
+        FileHandle *m_fileHandle = nullptr;
+        std::vector<Attribute> m_recodrdDescriptor;
+        std::string m_conditionAttribute;
+        CompOp m_compOp;
+        const void *m_value = nullptr;
+        std::vector<std::string> m_attributeNames;
+
+        bool pickNextValidRID();
+        bool recordSatisfiesCondition();
     };
 
     class RecordBasedFileManager {
@@ -103,6 +133,10 @@ namespace PeterDB {
         RC
         readRecord(FileHandle &fileHandle, const std::vector<Attribute> &recordDescriptor, const RID &rid, void *data);
 
+        RC
+        readRecordWithAttrFilter(FileHandle &fileHandle, const std::vector<Attribute> &recordDescriptor,
+                                 const std::vector<std::string> &attributeNames, const RID &rid, void *data);
+
         // Print the record that is passed to this utility method.
         // This method will be mainly used for debugging/testing.
         // The format is as follows:
@@ -135,6 +169,10 @@ namespace PeterDB {
                 const std::vector<std::string> &attributeNames, // a list of projected attributes
                 RBFM_ScanIterator &rbfm_ScanIterator);
 
+        bool isValidRid(FileHandle &fileHandle, const RID &rid);
+        bool maxSlotBreached(FileHandle &fileHandle, const RID &rid);
+        bool isValidDataPage(FileHandle &fileHandle, PageNum pageNum);
+
     protected:
         RecordBasedFileManager();                                                   // Prevent construction
         ~RecordBasedFileManager();                                                  // Prevent unwanted destruction
@@ -142,10 +180,13 @@ namespace PeterDB {
         RecordBasedFileManager &operator=(const RecordBasedFileManager &);          // Prevent assignment
 
     private:
-        PagedFileManager *m_pagedFileManager;
         Page m_page;
+        std::map<std::string, PageSelector*> m_pageSelectors;
+        PagedFileManager *m_pagedFileManager = nullptr;
 
-        int computePageNumForInsertion(unsigned short recordDataLength, FileHandle &fileHandle);
+        unsigned computePageNumForInsertion(unsigned recordLength, FileHandle &fileHandle);
+
+        void appendFreshPage(int pageNumber, FileHandle &fileHandle);
     };
 
 } // namespace PeterDB

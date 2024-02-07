@@ -6,9 +6,6 @@
 
 #define ATTR_COUNT_FIELD_SZ sizeof(uint16_t)
 #define ATTR_OFFSET_SZ sizeof(uint16_t)
-#define INT_SZ 4
-#define REAL_SZ 4
-#define VARCHAR_ATTR_SZ 4
 
 // given the null flags and the attribute number, returns True if the
 // attribute is defined as null in the flag
@@ -40,6 +37,25 @@ void writeRecordMetadata(void *serializedRecord, uint16_t &attrCount,
             (void*)attrOffsetsInRecord, offsetSzInRecord);
 
     return;
+}
+
+void getNullFlagsFromBoolean(const std::vector<bool>& booleanVector, char *nullFlagsData, unsigned nullFlagsBytes) {
+    unsigned sz = booleanVector.size();
+    assert(sz <= 8*nullFlagsBytes);
+
+    for (unsigned i=0; i<sz; i++) {
+        size_t byteIndex = i / 8;
+        size_t bitIndex = 7 - (i % 8);
+        // Check if the index is within the char array bounds
+        if (byteIndex < sz) {
+            // If the bool is true, set the corresponding bit in the char array
+            if (booleanVector[i])
+                nullFlagsData[byteIndex] |= (1 << bitIndex);
+            // If the bool is false, clear the corresponding bit in the char array
+            else
+                nullFlagsData[byteIndex] &= ~(1 << bitIndex);
+        }
+    }
 }
 
 uint32_t PeterDB::RecordTransformer::serialize(const std::vector<Attribute> &recordDescriptor,
@@ -104,7 +120,7 @@ uint32_t PeterDB::RecordTransformer::serialize(const std::vector<Attribute> &rec
 
                 case TypeVarChar:
                     attrSize = *((uint32_t*)dataPtr);
-                    dataPtr = (void*)((char*)dataPtr + VARCHAR_ATTR_SZ);
+                    dataPtr = (void*)((char*)dataPtr + VARCHAR_ATTR_LEN_SZ);
 
                     if (serializeData) {
                         memmove(serializedDataPtr, dataPtr, attrSize);
@@ -145,6 +161,7 @@ uint32_t PeterDB::RecordTransformer::serialize(const std::vector<Attribute> &rec
 }
 
 void PeterDB::RecordTransformer::deserialize(const std::vector<Attribute> &recordDescriptor,
+                                             const std::vector<std::string> &attributeNames,
                                              const void *serializedRecord,
                                              void *recordData) {
     uint16_t attrCount = recordDescriptor.size();
@@ -158,12 +175,14 @@ void PeterDB::RecordTransformer::deserialize(const std::vector<Attribute> &recor
     const uint16_t *attrOffsetData = nullptr;
     attrOffsetData = (const uint16_t*)((const char*)serializedRecord + (ATTR_COUNT_FIELD_SZ + nullFlagSize));
 
+    uint16_t projectedAttributeCount = attributeNames.size();
+    uint16_t projectedAttrsNullFlagSize = (projectedAttributeCount + 7) / 8;
+    std::vector<bool> nullFlagsBool;
+
     // Read the nullflags
     void *dataPtr = recordData;
-    memmove(dataPtr,
-            (const void*)((const char*)serializedRecord + ATTR_COUNT_FIELD_SZ),
-            nullFlagSize);
 
+    // go past the space required to add nullflags for projected attributes
     dataPtr = (void*)((char*)dataPtr + nullFlagSize);
 
     auto currAttr = 0;
@@ -178,7 +197,13 @@ void PeterDB::RecordTransformer::deserialize(const std::vector<Attribute> &recor
         bool isNull = isAttrNull(recordData, currAttr, attrCount);
         attrEnd = attrOffsetData[currAttr-1];
 
-        if (!isNull) {
+        // only if the attribute name is present in the list of projected
+        // attributes, only then write that attribute into the data
+        bool projectAttr = (attributeNames.end() != std::find(attributeNames.begin(), attributeNames.end(), attr.name));
+
+        if (projectAttr) nullFlagsBool.emplace_back(isNull);
+
+        if (projectAttr && !isNull) {
 
             switch (attr.type) {
                 case TypeInt:
@@ -200,8 +225,8 @@ void PeterDB::RecordTransformer::deserialize(const std::vector<Attribute> &recor
                 case TypeVarChar:
                     attrSize = attrEnd - attrStart;
 
-                    memmove(dataPtr, &attrSize, VARCHAR_ATTR_SZ);
-                    dataPtr = (void*)((char*)dataPtr + VARCHAR_ATTR_SZ);
+                    memmove(dataPtr, &attrSize, VARCHAR_ATTR_LEN_SZ);
+                    dataPtr = (void*)((char*)dataPtr + VARCHAR_ATTR_LEN_SZ);
 
                     memmove(dataPtr, (const void*)((const char*)serializedRecord + attrStart), attrSize);
                     dataPtr = (void*)((char*)dataPtr + attrSize);
@@ -214,6 +239,14 @@ void PeterDB::RecordTransformer::deserialize(const std::vector<Attribute> &recor
         }
         attrStart = attrEnd;
     }
+
+    char *nullFlagsData = (char*)malloc(projectedAttrsNullFlagSize);
+    assert(nullptr != nullFlagsData);
+    memset((void*) nullFlagsData, 0, projectedAttrsNullFlagSize);
+
+    getNullFlagsFromBoolean(nullFlagsBool, nullFlagsData, projectedAttrsNullFlagSize);
+
+    memcpy(recordData, (void*) nullFlagsData, projectedAttrsNullFlagSize);
 }
 
 void PeterDB::RecordTransformer::print(const std::vector<Attribute> &recordDescriptor,
@@ -255,9 +288,9 @@ void PeterDB::RecordTransformer::print(const std::vector<Attribute> &recordDescr
                     if (0 == attrSize) {
                         stream << "";
                     } else {
-                        stream.write((const char*)((char*)dataPtr + VARCHAR_ATTR_SZ), attrSize);
+                        stream.write((const char*)((char*)dataPtr + VARCHAR_ATTR_LEN_SZ), attrSize);
                     }
-                    dataPtr = (void*)((char*)dataPtr + (attrSize + VARCHAR_ATTR_SZ));
+                    dataPtr = (void*)((char*)dataPtr + (attrSize + VARCHAR_ATTR_LEN_SZ));
 
                     break;
 

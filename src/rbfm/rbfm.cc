@@ -298,9 +298,17 @@ namespace PeterDB {
         if (prevPages < fileHandle.getNextPageNum()) {
             // meaning there was new page added
             // so initialise the available space metadata for that page
-            m_page.eraseAndReset();
+            appendFreshPage(pageNumber, fileHandle);
         }
         return pageNumber;
+    }
+
+    void RecordBasedFileManager::appendFreshPage(int pageNumber, FileHandle &fileHandle) {
+        auto rp = m_page.readPage(fileHandle, pageNumber);
+        assert(0 == rp);
+        m_page.eraseAndReset();
+        auto rc = m_page.writePage(fileHandle, pageNumber);
+        assert(rc == 0);
     }
 
     bool RecordBasedFileManager::isValidDataPage(FileHandle &fileHandle, PageNum pageNum) {

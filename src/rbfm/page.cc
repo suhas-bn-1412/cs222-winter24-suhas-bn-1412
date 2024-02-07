@@ -17,7 +17,7 @@ namespace PeterDB {
     }
 
     int Page::getCurrentPage() {
-        return m_currentPage;
+        return m_pageNum;
     }
 
     RC Page::readPage(FileHandle &fileHandle, PageNum pageNum) {
@@ -26,7 +26,7 @@ namespace PeterDB {
             return rp;
         }
 
-        m_currentPage = pageNum;
+        m_pageNum = pageNum;
         return 0;
     }
 
@@ -34,14 +34,14 @@ namespace PeterDB {
         // write page should be called after previous operations with same page
         // those previous operations should have made sure that the current page
         // we have is the same as the pagenum passed to the writePage
-        assert(pageNum == m_currentPage);
+        assert(pageNum == m_pageNum);
 
         auto wp = fileHandle.writePage(pageNum, m_data);
         if (0 != wp) {
             return wp;
         }
 
-        m_currentPage = pageNum;
+        m_pageNum = pageNum;
         return 0;
     }
 

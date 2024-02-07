@@ -185,6 +185,8 @@ namespace PeterDB {
         PagedFileManager *m_pagedFileManager = nullptr;
 
         unsigned computePageNumForInsertion(unsigned recordLength, FileHandle &fileHandle);
+
+        void appendFreshPage(int pageNumber, FileHandle &fileHandle);
     };
 
 } // namespace PeterDB

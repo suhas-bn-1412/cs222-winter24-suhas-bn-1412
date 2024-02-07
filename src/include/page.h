@@ -51,7 +51,7 @@ namespace PeterDB {
         int getCurrentPage();
 
     private:
-        int m_currentPage = -1;
+        int m_pageNum = -1;
         byte *m_data = new byte[PAGE_SIZE];
         unsigned short* freeByteCount = (unsigned short *) (m_data + PAGE_SIZE - PAGE_METADATA_SIZE) + 1;
         unsigned short* slotCount = (unsigned short *) (m_data + PAGE_SIZE - PAGE_METADATA_SIZE);

@@ -175,9 +175,12 @@ void PeterDB::RecordTransformer::deserialize(const std::vector<Attribute> &recor
     const uint16_t *attrOffsetData = nullptr;
     attrOffsetData = (const uint16_t*)((const char*)serializedRecord + (ATTR_COUNT_FIELD_SZ + nullFlagSize));
 
+    const void *nullFlagsPtr = nullptr;
+    nullFlagsPtr = (const void*) ((const char*)serializedRecord + ATTR_COUNT_FIELD_SZ);
+
     uint16_t projectedAttributeCount = attributeNames.size();
     uint16_t projectedAttrsNullFlagSize = (projectedAttributeCount + 7) / 8;
-    std::vector<bool> nullFlagsBool;
+    std::vector<bool> projectAttrNullFlagsAsBools;
 
     // Read the nullflags
     void *dataPtr = recordData;
@@ -194,14 +197,14 @@ void PeterDB::RecordTransformer::deserialize(const std::vector<Attribute> &recor
         currAttr++;
 
         // Read null flag and offset
-        bool isNull = isAttrNull(recordData, currAttr, attrCount);
+        bool isNull = isAttrNull(nullFlagsPtr, currAttr, attrCount);
         attrEnd = attrOffsetData[currAttr-1];
 
         // only if the attribute name is present in the list of projected
         // attributes, only then write that attribute into the data
         bool projectAttr = (attributeNames.end() != std::find(attributeNames.begin(), attributeNames.end(), attr.name));
 
-        if (projectAttr) nullFlagsBool.emplace_back(isNull);
+        if (projectAttr) projectAttrNullFlagsAsBools.emplace_back(isNull);
 
         if (projectAttr && !isNull) {
 
@@ -240,13 +243,13 @@ void PeterDB::RecordTransformer::deserialize(const std::vector<Attribute> &recor
         attrStart = attrEnd;
     }
 
-    char *nullFlagsData = (char*)malloc(projectedAttrsNullFlagSize);
-    assert(nullptr != nullFlagsData);
-    memset((void*) nullFlagsData, 0, projectedAttrsNullFlagSize);
+    char *projectedAttrsNullFlags = (char*)malloc(projectedAttrsNullFlagSize);
+    assert(nullptr != projectedAttrsNullFlags);
+    memset((void*) projectedAttrsNullFlags, 0, projectedAttrsNullFlagSize);
 
-    getNullFlagsFromBoolean(nullFlagsBool, nullFlagsData, projectedAttrsNullFlagSize);
+    getNullFlagsFromBoolean(projectAttrNullFlagsAsBools, projectedAttrsNullFlags, projectedAttrsNullFlagSize);
 
-    memcpy(recordData, (void*) nullFlagsData, projectedAttrsNullFlagSize);
+    memcpy(recordData, (void*) projectedAttrsNullFlags, projectedAttrsNullFlagSize);
 }
 
 void PeterDB::RecordTransformer::print(const std::vector<Attribute> &recordDescriptor,

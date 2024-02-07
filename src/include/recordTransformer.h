@@ -4,6 +4,10 @@
 #include <vector>
 #include "src/include/rbfm.h"
 
+#define INT_SZ 4
+#define REAL_SZ 4
+#define VARCHAR_ATTR_LEN_SZ 4
+
 namespace PeterDB {
     class RecordTransformer {
         public:
@@ -12,6 +16,7 @@ namespace PeterDB {
                                   void *serializedRecord);
 
         static void deserialize(const std::vector<Attribute> &recordDescriptor,
+                                const std::vector<std::string> &attributeNames,
                                 const void *serializedRecord,
                                 void *recordData);
 

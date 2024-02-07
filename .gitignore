@@ -54,6 +54,9 @@ _deps
 # *.iml
 # *.ipr
 
+# vim swp files
+*.swp
+
 # CMake
 cmake-build-*/
 

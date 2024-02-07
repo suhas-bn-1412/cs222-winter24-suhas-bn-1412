@@ -49,7 +49,7 @@ void getNullFlagsFromBoolean(const std::vector<bool>& booleanVector, char *nullF
         // Check if the index is within the char array bounds
         if (byteIndex < sz) {
             // If the bool is true, set the corresponding bit in the char array
-            if (boolVector[i])
+            if (booleanVector[i])
                 nullFlagsData[byteIndex] |= (1 << bitIndex);
             // If the bool is false, clear the corresponding bit in the char array
             else

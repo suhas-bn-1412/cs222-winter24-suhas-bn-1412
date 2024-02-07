@@ -264,7 +264,7 @@ namespace PeterDB {
         }
 
         void *tmp = dataToBeRead;
-        dataToBeRead = (void*)( (char*)dataToBeRead + nullFlagSz );
+        dataToBeRead = (void*)( (char*)dataToBeRead + 1 /*for null flag*/);
         if (TypeVarChar == attrInfo.type) {
             auto len = *( (uint32_t*) dataToBeRead );
             memmove(data, (void*)( (char*) dataToBeRead + VARCHAR_ATTR_LEN_SZ ), len);

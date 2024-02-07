@@ -252,10 +252,8 @@ namespace PeterDB {
         }
         assert(attrInfo.name != "");
 
-        auto nullFlagSz = (recordDescriptor.size() + 7) / 8;
-
         // to read varchar we need 4 extra byte in the beginning to know the length of it
-        void *dataToBeRead = malloc(nullFlagSz + ((attrInfo.type == TypeVarChar) ? (VARCHAR_ATTR_LEN_SZ + attrInfo.length) : attrInfo.length));
+        void *dataToBeRead = malloc(1 /*for null flag*/ + ((attrInfo.type == TypeVarChar) ? (VARCHAR_ATTR_LEN_SZ + attrInfo.length) : attrInfo.length));
         assert(nullptr != dataToBeRead);
 
         auto rr = readRecordWithAttrFilter(fileHandle, recordDescriptor, attrNames, rid, dataToBeRead);

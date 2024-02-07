@@ -39,6 +39,25 @@ void writeRecordMetadata(void *serializedRecord, uint16_t &attrCount,
     return;
 }
 
+void getNullFlagsFromBoolean(const std::vector<bool>& booleanVector, char *nullFlagsData, unsigned nullFlagsBytes) {
+    unsigned sz = booleanVector.size();
+    assert(sz <= 8*nullFlagsBytes);
+
+    for (unsigned i=0; i<sz; i++) {
+        size_t byteIndex = i / 8;
+        size_t bitIndex = 7 - (i % 8);
+        // Check if the index is within the char array bounds
+        if (byteIndex < sz) {
+            // If the bool is true, set the corresponding bit in the char array
+            if (boolVector[i])
+                nullFlagsData[byteIndex] |= (1 << bitIndex);
+            // If the bool is false, clear the corresponding bit in the char array
+            else
+                nullFlagsData[byteIndex] &= ~(1 << bitIndex);
+        }
+    }
+}
+
 uint32_t PeterDB::RecordTransformer::serialize(const std::vector<Attribute> &recordDescriptor,
                                                const void *recordData,
                                                void *serializedRecord) {
@@ -156,12 +175,14 @@ void PeterDB::RecordTransformer::deserialize(const std::vector<Attribute> &recor
     const uint16_t *attrOffsetData = nullptr;
     attrOffsetData = (const uint16_t*)((const char*)serializedRecord + (ATTR_COUNT_FIELD_SZ + nullFlagSize));
 
+    uint16_t projectedAttributeCount = attributeNames.size();
+    uint16_t projectedAttrsNullFlagSize = (projectedAttributeCount + 7) / 8;
+    std::vector<bool> nullFlagsBool;
+
     // Read the nullflags
     void *dataPtr = recordData;
-    memmove(dataPtr,
-            (const void*)((const char*)serializedRecord + ATTR_COUNT_FIELD_SZ),
-            nullFlagSize);
 
+    // go past the space required to add nullflags for projected attributes
     dataPtr = (void*)((char*)dataPtr + nullFlagSize);
 
     auto currAttr = 0;
@@ -179,6 +200,8 @@ void PeterDB::RecordTransformer::deserialize(const std::vector<Attribute> &recor
         // only if the attribute name is present in the list of projected
         // attributes, only then write that attribute into the data
         bool projectAttr = (attributeNames.end() != std::find(attributeNames.begin(), attributeNames.end(), attr.name));
+
+        if (projectAttr) nullFlagsBool.emplace_back(isNull);
 
         if (projectAttr && !isNull) {
 
@@ -216,6 +239,14 @@ void PeterDB::RecordTransformer::deserialize(const std::vector<Attribute> &recor
         }
         attrStart = attrEnd;
     }
+
+    char *nullFlagsData = (char*)malloc(projectedAttrsNullFlagSize);
+    assert(nullptr != nullFlagsData);
+    memset((void*) nullFlagsData, 0, projectedAttrsNullFlagSize);
+
+    getNullFlagsFromBoolean(nullFlagsBool, nullFlagsData, projectedAttrsNullFlagSize);
+
+    memcpy(recordData, (void*) nullFlagsData, projectedAttrsNullFlagSize);
 }
 
 void PeterDB::RecordTransformer::print(const std::vector<Attribute> &recordDescriptor,

@@ -96,6 +96,13 @@ namespace PeterDB {
         RelationManager(const RelationManager &);                           // Prevent construction by copying
         RelationManager &operator=(const RelationManager &);                // Prevent assignment
 
+        RecordBasedFileManager *m_rbfm = nullptr;
+
+        // opens both Tables table and Attributes table
+        RC createTablesAndAttributesFH(FileHandle& tableFileHandle, FileHandle& attributesFileHandle);
+
+        // given table name, creates fileHandle and Record descriptor
+        RC getFileHandleAndAttributes(const std::string& tableName, FileHandle& fh, std::vector<Attribute>& attrs);
     };
 
 } // namespace PeterDB

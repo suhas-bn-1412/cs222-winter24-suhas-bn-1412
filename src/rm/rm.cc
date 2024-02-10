@@ -130,6 +130,41 @@ namespace PeterDB {
         return 0;
     }
 
+    AttrType getAttrType(uint32_t attrType) {
+        assert(attrType <= TypeVarChar);
+
+        if (TypeInt == attrType) return TypeInt;
+        if (TypeReal == attrType) return TypeReal;
+        if (TypeVarChar == attrType) return TypeVarChar;
+
+        assert(0);
+        return TypeInt;
+    }
+
+    Attribute getAttributeFromData(void* data) {
+        // we have data in the following format
+        // first 4 bytes = num of fields present in the returned data = attrsToReadFromAttributesTable.size()
+        // next 1 bytes = representing the nullFlags of all the attibutes
+        // next 4 bytes = length of the varchar holding the attribute name = n
+        // next n bytes = attribute name
+        // next 4 bytes = attribute type
+        // next 4 bytes = attribute length
+        assert(3 == *( (uint32_t*) data ) );
+
+        uint32_t strlen = *( (uint32_t*) ( (char*)data + 5) );
+        std::string attr_name;
+        attr_name.assign(( (char*)data + 4 + 1 + 4), strlen);
+
+        uint32_t attr_type = *( (uint32_t*) ((char*)data + 4 + 1 + 4 + strlen) );
+        uint32_t attr_length = *( (uint32_t*) ((char*)data + 4 + 1 + 4 + strlen + 4) );
+
+        Attribute attr;
+        attr.name = attr_name;
+        attr.type = getAttrType(attr_type);
+        attr.length = attr_length;
+        return attr;
+    }
+
     RC RelationManager::getAttributes(const std::string &tableName, std::vector<Attribute> &attrs) {
         FileHandle tableFileHandle;
         FileHandle attributesFileHandle;

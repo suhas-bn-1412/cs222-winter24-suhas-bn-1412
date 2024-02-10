@@ -117,6 +117,9 @@ namespace PeterDB {
         void buildAndInsertAttributesIntoAttributesTable(const std::vector<Attribute> &attrs, int tid);
 
         std::string buildFilename(const std::string &tableName);
+
+        // given table name, creates fileHandle and Record descriptor
+        RC getFileHandleAndAttributes(const std::string& tableName, FileHandle& fh, std::vector<Attribute>& attrs);
     };
 
 } // namespace PeterDB

@@ -96,8 +96,15 @@ namespace PeterDB {
         RelationManager(const RelationManager &);                           // Prevent construction by copying
         RelationManager &operator=(const RelationManager &);                // Prevent assignment
 
+        void initTablesTable();
+
+        void initAttributesTable();
+
+    private:
+        static const RecordBasedFileManager &m_rbfm;
     };
 
+    static const RecordBasedFileManager &m_rbfm = RecordBasedFileManager::instance();;
 } // namespace PeterDB
 
 #endif // _rm_h_

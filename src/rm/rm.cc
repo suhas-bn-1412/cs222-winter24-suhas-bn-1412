@@ -1,4 +1,5 @@
 #include "src/include/rm.h"
+#include "src/include/catalogueConstants.h"
 
 namespace PeterDB {
     RelationManager &RelationManager::instance() {
@@ -15,9 +16,8 @@ namespace PeterDB {
     RelationManager &RelationManager::operator=(const RelationManager &) = default;
 
     RC RelationManager::createCatalog() {
-        // Create table "Tables"
-
-        // Create table "Attributes"
+        initAttributesTable();
+        initTablesTable();
         return -1;
     }
 
@@ -107,6 +107,22 @@ namespace PeterDB {
                  bool highKeyInclusive,
                  RM_IndexScanIterator &rm_IndexScanIterator){
         return -1;
+    }
+
+    void RelationManager::initAttributesTable() {
+
+
+
+        std::string tableName = CatalogueConstants::ATTRIBUTES_TABLE_NAME;
+        std::vector<Attribute> attributes = CatalogueConstants::attributesTableAttributes;
+
+    }
+
+    void RelationManager::initTablesTable() {
+        // Create table "Tables"
+        std::string tableName = CatalogueConstants::TABLES_TABLE_NAME;
+        std::vector<Attribute> attributes = CatalogueConstants::tablesTableAttributes;
+        // prepare DATA
     }
 
 

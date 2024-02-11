@@ -1,11 +1,11 @@
-#ifndef _serializer_h_
-#define _serializer_h_
+#ifndef _attributeAndValueSerializer_h_
+#define _attributeAndValueSerializer_h_
 
 #include <vector>
 #include "src/include/attributeAndValue.h"
 
 namespace PeterDB {
-    class Serializer {
+    class AttributeAndValueSerializer {
     public:
         static unsigned int computeSerializedDataLenBytes(std::vector<AttributeAndValue> *attributeAndValues);
 

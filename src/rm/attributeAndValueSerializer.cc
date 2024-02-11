@@ -5,24 +5,24 @@
 
 namespace PeterDB {
 
-    unsigned int Serializer::computeSerializedDataLenBytes(std::vector<AttributeAndValue> *attributeAndValues) {
+    unsigned int AttributeAndValueSerializer::computeSerializedDataLenBytes(std::vector<AttributeAndValue> *attributeAndValues) {
         unsigned int nullFlagSizeBytes = computeNullFlagSizeBytes(attributeAndValues->size());
         unsigned int attributeValuesLengthBytes = computeAttributeValuesLengthBytes(attributeAndValues);
         return nullFlagSizeBytes + attributeValuesLengthBytes;
     }
 
-    void Serializer::serialize(std::vector<AttributeAndValue> *attributeAndValues, void *data) {
+    void AttributeAndValueSerializer::serialize(std::vector<AttributeAndValue> *attributeAndValues, void *data) {
         assert(data != nullptr);
         unsigned int nullFlagLenBytes = computeNullFlagSizeBytes(attributeAndValues->size());
         computeAndAddNullFlag(attributeAndValues, data);
         concatAttributeValues(attributeAndValues, (byte *) data + nullFlagLenBytes);
     }
 
-    unsigned int Serializer::computeNullFlagSizeBytes(unsigned int numFields) {
+    unsigned int AttributeAndValueSerializer::computeNullFlagSizeBytes(unsigned int numFields) {
         return ceil(numFields / NUM_BITS_PER_BYTE);
     }
 
-    unsigned int Serializer::computeAttributeValuesLengthBytes(std::vector<AttributeAndValue> *attributeAndValues) {
+    unsigned int AttributeAndValueSerializer::computeAttributeValuesLengthBytes(std::vector<AttributeAndValue> *attributeAndValues) {
         unsigned int attributeValuesLengthBytes = 0;
         for (const auto& attributeAndValue: *attributeAndValues) {
             attributeValuesLengthBytes += getAttributeValueSize(attributeAndValue);
@@ -30,13 +30,13 @@ namespace PeterDB {
         return attributeValuesLengthBytes;
     }
 
-    void Serializer::computeAndAddNullFlag(std::vector<AttributeAndValue> *attributesAndValues, void *data) {
+    void AttributeAndValueSerializer::computeAndAddNullFlag(std::vector<AttributeAndValue> *attributesAndValues, void *data) {
         unsigned int nullFlagLengthBytes = computeNullFlagSizeBytes(attributesAndValues->size());
         memset(data, 0, nullFlagLengthBytes);
         //todo: handle null fields
     }
 
-    void Serializer::concatAttributeValues(std::vector<AttributeAndValue> *attributeAndValues, byte *data) {
+    void AttributeAndValueSerializer::concatAttributeValues(std::vector<AttributeAndValue> *attributeAndValues, byte *data) {
         byte *dest = data;
         for (const auto &attributeAndValue: *attributeAndValues) {
             uint32_t attrValueSize = getAttributeValueSize(attributeAndValue);
@@ -51,7 +51,7 @@ namespace PeterDB {
         }
     }
 
-    unsigned int Serializer::getAttributeValueSize(const AttributeAndValue &attributeAndValue) {
+    unsigned int AttributeAndValueSerializer::getAttributeValueSize(const AttributeAndValue &attributeAndValue) {
         unsigned int attributeDataSize = 0;
         AttrType attrType = attributeAndValue.getAttribute().type;
         switch (attrType) {

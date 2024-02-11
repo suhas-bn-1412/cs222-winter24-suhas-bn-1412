@@ -99,16 +99,14 @@ namespace PeterDB {
         RecordBasedFileManager *m_rbfm = nullptr;
 
         // opens both Tables table and Attributes table
-        RC createTablesAndAttributesFH(FileHandle& tableFileHandle, FileHandle& attributesFileHandle);
+        RC openTablesAndAttributesFH(FileHandle& tableFileHandle, FileHandle& attributesFileHandle);
 
         // given table name, creates fileHandle and Record descriptor
         RC getFileHandleAndAttributes(const std::string& tableName, FileHandle& fh, std::vector<Attribute>& attrs);
+
         void initTablesTable();
 
         void initAttributesTable();
-
-    private:
-        static const RecordBasedFileManager &m_rbfm;
     };
 
 } // namespace PeterDB

@@ -1,5 +1,6 @@
 #include "src/include/rm.h"
 #include "src/include/catalogueConstants.h"
+#include "src/include/attributeAndValueSerializer.h"
 
 namespace PeterDB {
     RelationManager &RelationManager::instance() {
@@ -75,17 +76,17 @@ namespace PeterDB {
         return attr;
     }
 
-    RC RelationManager::createTablesAndAttributesFH(FileHandle& tableFileHandle,
-                                                    FileHandle& attributesFileHandle) {
+    RC RelationManager::openTablesAndAttributesFH(FileHandle& tableFileHandle,
+                                                  FileHandle& attributesFileHandle) {
         auto of = m_rbfm->openFile(CatalogueConstants::TABLES_FILE_NAME, tableFileHandle);
         if (0 != of) {
             ERROR("Error while opening %s file", CatalogueConstants::TABLES_FILE_NAME);
             return of;
         }
 
-        of = m_rbfm->openFile(CatalogueConstants::TABLES_FILE_NAME, attributesFileHandle);
+        of = m_rbfm->openFile(CatalogueConstants::ATTRIBUTES_TABLE_NAME, attributesFileHandle);
         if (0 != of) {
-            ERROR("Error while opening %s file", CatalogueConstants::TABLES_FILE_NAME);
+            ERROR("Error while opening %s file", CatalogueConstants::ATTRIBUTES_TABLE_NAME);
             tableFileHandle.closeFile();
             return of;
         }
@@ -97,7 +98,7 @@ namespace PeterDB {
         FileHandle tableFileHandle;
         FileHandle attributesFileHandle;
 
-        if (0 != createTablesAndAttributesFH(tableFileHandle, attributesFileHandle)) {
+        if (0 != openTablesAndAttributesFH(tableFileHandle, attributesFileHandle)) {
             return -1;
         }
 
@@ -371,10 +372,49 @@ namespace PeterDB {
     }
 
     void RelationManager::initTablesTable() {
-        // Create table "Tables"
-        std::string tableName = CatalogueConstants::TABLES_TABLE_NAME;
-        std::vector<Attribute> attributes = CatalogueConstants::tablesTableAttributes;
+        // Create a file for table "Tables"
+        m_rbfm->createFile(CatalogueConstants::TABLES_FILE_NAME);
+
+        // Open the file for table "Tables"
+        FileHandle tablesFileHandle;
+        m_rbfm->openFile(CatalogueConstants::TABLES_FILE_NAME, tablesFileHandle);
+
+        // Initialize table "Tables" by inserting 2 rows (records)
+        // corresponding to tableId-tableName-filename of "Tables" and "Attributes"
+
+        // PREPARE AND INSERT ROW #1
+
+        // Fetch attributes
+        std::vector<AttributeAndValue> tablesTableAttributeAndValues = CatalogueConstantsBuilder::buildTablesTableAttributeAndValues();
+        size_t tablesTableAttributeAndValuesDataSize = AttributeAndValueSerializer::computeSerializedDataLenBytes(
+                &tablesTableAttributeAndValues);
+        void *tablesTableAttributeAndValuesData = malloc(tablesTableAttributeAndValuesDataSize);
+
         // prepare DATA
+        AttributeAndValueSerializer::serialize(&tablesTableAttributeAndValues, tablesTableAttributeAndValuesData);
+
+        // insert into table "Tables"
+        RID rid1;
+        m_rbfm->insertRecord(tablesFileHandle, CatalogueConstants::tablesTableAttributes,
+                             tablesTableAttributeAndValuesData, rid1);
+
+        // PREPARE AND INSERT ROW #1
+
+        // Fetch attributes
+        std::vector<AttributeAndValue> attributesTableAttributeAndValues = CatalogueConstantsBuilder::buildAttributesTableAttributeAndValues();
+        size_t attributesTableAttributeAndValuesDataSize = AttributeAndValueSerializer::computeSerializedDataLenBytes(
+                &attributesTableAttributeAndValues);
+        void *attributesTableAttributeAndValuesData = malloc(attributesTableAttributeAndValuesDataSize);
+
+        // prepare DATA
+        AttributeAndValueSerializer::serialize(&attributesTableAttributeAndValues, attributesTableAttributeAndValuesData);
+
+        // insert into table "Tables"
+        RID rid;
+        m_rbfm->insertRecord(tablesFileHandle, CatalogueConstants::tablesTableAttributes,
+                             attributesTableAttributeAndValuesData, rid);
+
+        m_rbfm->closeFile(tablesFileHandle);
     }
 
 

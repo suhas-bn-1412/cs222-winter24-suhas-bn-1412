@@ -8,7 +8,7 @@ typedef char byte;
 namespace PeterDB {
     class AttributeAndValue {
     public:
-        AttributeAndValue(const Attribute *attribute, void *value);
+        AttributeAndValue(const Attribute &attribute, void *value);
 
         ~AttributeAndValue();
 

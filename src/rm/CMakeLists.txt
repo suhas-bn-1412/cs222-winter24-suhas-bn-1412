@@ -1,5 +1,6 @@
 add_library(rm
         rm.cc
+        tablesAttributeConstants.cc
         catalogueConstants.cc
         catalogueConstantsBuilder.cc
         attributeAndValue.cc

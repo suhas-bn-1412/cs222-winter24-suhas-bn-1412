@@ -3,18 +3,27 @@
 namespace PeterDB {
     std::vector<Attribute> CatalogueConstantsBuilder::buildTablesTableAttributes() {
         std::vector<Attribute> attributes;
-        attributes.push_back({"id", AttrType::TypeInt, INTEGER_ATTRIBUTE_LENGTH});
-        attributes.push_back({"name", AttrType::TypeVarChar, 4});
-        attributes.push_back({"file_name", AttrType::TypeVarChar, 9});
+        attributes.push_back({TABLE_ATTR_NAME_ID,
+                              AttrType::TypeInt, INTEGER_ATTRIBUTE_LENGTH});
+        attributes.push_back({TABLE_ATTR_NAME_NAME,
+                              AttrType::TypeVarChar, ATTRIBUTE_NAME_MAX_LENGTH});
+        attributes.push_back({TABLE_ATTR_NAME_FNAME,
+                              AttrType::TypeVarChar, ATTRIBUTE_NAME_MAX_LENGTH});
         return attributes;
     }
 
     std::vector<Attribute> CatalogueConstantsBuilder::buildAttributesTableAttributes() {
         std::vector<Attribute> attributes;
-        attributes.push_back({"table_id", AttrType::TypeInt, INTEGER_ATTRIBUTE_LENGTH});
-        attributes.push_back({"attr_name", AttrType::TypeVarChar, 9});
-        attributes.push_back({"attr_type", AttrType::TypeVarChar, 9});
-        attributes.push_back({"position", AttrType::TypeInt, INTEGER_ATTRIBUTE_LENGTH});
+        attributes.push_back({ATTRIBUTES_ATTR_NAME_TABLE_ID,
+                              AttrType::TypeInt, INTEGER_ATTRIBUTE_LENGTH});
+        attributes.push_back({ATTRIBUTES_ATTR_NAME_ATTR_NAME,
+                              AttrType::TypeVarChar, ATTRIBUTE_NAME_MAX_LENGTH});
+        attributes.push_back({ATTRIBUTES_ATTR_NAME_ATTR_TYPE,
+                              AttrType::TypeInt, INTEGER_ATTRIBUTE_LENGTH});
+        attributes.push_back({ATTRIBUTES_ATTR_NAME_ATTR_LENGTH,
+                              AttrType::TypeInt, INTEGER_ATTRIBUTE_LENGTH});
+        attributes.push_back({ATTRIBUTES_ATTR_NAME_POSITION,
+                              AttrType::TypeInt, INTEGER_ATTRIBUTE_LENGTH});
         return attributes;
     }
 }

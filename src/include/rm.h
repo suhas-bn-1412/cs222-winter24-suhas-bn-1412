@@ -10,6 +10,8 @@
 namespace PeterDB {
 #define RM_EOF (-1)  // end of a scan operator
 
+    class RelationManager;
+
     // RM_ScanIterator is an iterator to go through tuples
     class RM_ScanIterator {
     public:
@@ -21,6 +23,19 @@ namespace PeterDB {
         RC getNextTuple(RID &rid, void *data);
 
         RC close();
+
+        RC init(RelationManager* rm, RecordBasedFileManager* rbfm, const std::string& tableName);
+        RC initRbfmsi(const std::string &conditionAttribute,
+                      const CompOp compOp,
+                      const void *value,
+                      const std::vector<std::string> &attributeNames);
+
+        bool m_initDone = false;
+        RelationManager* m_rm = nullptr;
+        RecordBasedFileManager* m_rbfm = nullptr;
+        FileHandle m_fh;
+        std::vector<Attribute> m_attrs;
+        RBFM_ScanIterator m_rbfmsi;
     };
 
     // RM_IndexScanIterator is an iterator to go through index entries
@@ -91,6 +106,9 @@ namespace PeterDB {
                      bool highKeyInclusive,
                      RM_IndexScanIterator &rm_IndexScanIterator);
 
+        // given table name, creates fileHandle and Record descriptor
+        RC getFileHandleAndAttributes(const std::string& tableName, FileHandle& fh, std::vector<Attribute>& attrs);
+
     protected:
         RelationManager();                                                  // Prevent construction
         ~RelationManager();                                                 // Prevent unwanted destruction
@@ -115,8 +133,6 @@ namespace PeterDB {
         int computeNextTableId();
 
         void buildAndInsertAttributesIntoAttributesTable(const std::vector<Attribute> &attrs, int tid);
-
-        std::string buildFilename(const std::string &tableName);
 
         // given table name, creates fileHandle and Record descriptor
         RC getFileHandleAndAttributes(const std::string& tableName, FileHandle& fh, std::vector<Attribute>& attrs);

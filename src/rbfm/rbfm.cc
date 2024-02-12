@@ -36,6 +36,11 @@ namespace PeterDB {
             return retCode;
         }
 
+        if (m_fileOpenRefCount.end() == m_fileOpenRefCount.find(fileName)) {
+            m_fileOpenRefCount[fileName] = 0;
+        }
+        m_fileOpenRefCount[fileName]++;
+
         // Check if PageSelector for this filename already exists
         auto it = m_pageSelectors.find(fileName);
         if (it == m_pageSelectors.end()) {
@@ -49,9 +54,17 @@ namespace PeterDB {
     }
 
     RC RecordBasedFileManager::closeFile(FileHandle &fileHandle) {
+        if (m_fileOpenRefCount.end() == m_fileOpenRefCount.find(fileHandle.getFileName())) {
+            // return failure ??, fow now returning 0
+            return 0;
+        }
+
+        m_fileOpenRefCount[fileHandle.getFileName()]--;
+        int curRefCount = m_fileOpenRefCount[fileHandle.getFileName()];
+
         // Check if PageSelector for this filename exists
         auto it = m_pageSelectors.find(fileHandle.getFileName());
-        if (it != m_pageSelectors.end()) {
+        if (it != m_pageSelectors.end() && curRefCount==0) {
             // Write metadata to disk and delete the PageSelector
             it->second->writeMetadataToDisk();
             delete it->second;

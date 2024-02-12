@@ -182,6 +182,7 @@ namespace PeterDB {
     private:
         Page m_page;
         std::map<std::string, PageSelector*> m_pageSelectors;
+        std::map<std::string, int> m_fileOpenRefCount;
         PagedFileManager *m_pagedFileManager = nullptr;
 
         unsigned computePageNumForInsertion(unsigned recordLength, FileHandle &fileHandle);

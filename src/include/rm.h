@@ -3,6 +3,7 @@
 
 #include <string>
 #include <vector>
+#include <unordered_map>
 
 #include "src/include/rbfm.h"
 #include "attributeAndValue.h"
@@ -115,7 +116,9 @@ namespace PeterDB {
         RelationManager(const RelationManager &);                           // Prevent construction by copying
         RelationManager &operator=(const RelationManager &);                // Prevent assignment
 
+        bool m_catalogCreated = false;
         RecordBasedFileManager *m_rbfm = nullptr;
+        std::unordered_map<std::string, bool> m_tablesCreated;
 
         // opens both Tables table and Attributes table
         RC openTablesAndAttributesFH(FileHandle& tableFileHandle, FileHandle& attributesFileHandle);

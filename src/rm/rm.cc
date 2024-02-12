@@ -21,28 +21,37 @@ namespace PeterDB {
     RelationManager &RelationManager::operator=(const RelationManager &) = default;
 
     std::string getFileName(const std::string& tableName) {
-        return tableName + ".bin";
+        return tableName; // + ".bin"; we don't have a choice.. test cases expects this way
     }
 
     RC RelationManager::createCatalog() {
+        m_catalogCreated = true;
         initTablesTable();
         initAttributesTable();
         return 0;
     }
 
     RC RelationManager::deleteCatalog() {
+        m_catalogCreated = false;
         m_rbfm->destroyFile(CatalogueConstants::TABLES_FILE_NAME);
         m_rbfm->destroyFile(CatalogueConstants::ATTRIBUTES_FILE_NAME);
         return 0;
     }
 
     RC RelationManager::createTable(const std::string &tablezName, const std::vector<Attribute> &attrs) {
+        if (!m_catalogCreated) return -1;
+
+        std::string tableFileName = getFileName(tablezName);
+        if (0 != m_rbfm->createFile(tableFileName)) {
+            ERROR("Error while creating the file for table %s\n", tableFileName);
+            return -1;
+        }
+
         // find next TID
         int tid = computeNextTableId();
         if (tid == -1) {
             return -1;
         }
-        std::string tableFileName = getFileName(tablezName);
 
         // ======= STEP 1
         // prepare and insert table details into "Tables" table
@@ -71,11 +80,22 @@ namespace PeterDB {
         // prepare and insert table attribute details into "Attributes" table
         buildAndInsertAttributesIntoAttributesTable(attrs, tid);
 
+        m_tablesCreated[tablezName] = true;
         return 0;
     }
 
 
     RC RelationManager::deleteTable(const std::string &tableName) {
+        if (!m_catalogCreated) return -1;
+
+        auto it = m_tablesCreated.find(tableName);
+        if (m_tablesCreated.end() == it) {
+            ERROR("Delete table '%s' not possible, it was not created\n", tableName);
+            return -1;
+        }
+
+        m_tablesCreated.erase(it);
+
         m_rbfm->destroyFile(getFileName(tableName));
         return 0;
     }

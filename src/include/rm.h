@@ -5,7 +5,6 @@
 #include <vector>
 
 #include "src/include/rbfm.h"
-#include "attributeAndValue.h"
 
 namespace PeterDB {
 #define RM_EOF (-1)  // end of a scan operator
@@ -100,23 +99,10 @@ namespace PeterDB {
         RecordBasedFileManager *m_rbfm = nullptr;
 
         // opens both Tables table and Attributes table
-        RC openTablesAndAttributesFH(FileHandle& tableFileHandle, FileHandle& attributesFileHandle);
+        RC createTablesAndAttributesFH(FileHandle& tableFileHandle, FileHandle& attributesFileHandle);
 
         // given table name, creates fileHandle and Record descriptor
         RC getFileHandleAndAttributes(const std::string& tableName, FileHandle& fh, std::vector<Attribute>& attrs);
-
-        void initTablesTable();
-
-        void initAttributesTable();
-
-        std::vector<std::vector<AttributeAndValue>>
-        buildAttributesForAttributesTable(int tableId, const std::vector<Attribute> &attributes);
-
-        int computeNextTableId();
-
-        void buildAndInsertAttributesIntoAttributesTable(const std::vector<Attribute> &attrs, int tid);
-
-        std::string buildFilename(const std::string &tableName);
     };
 
 } // namespace PeterDB

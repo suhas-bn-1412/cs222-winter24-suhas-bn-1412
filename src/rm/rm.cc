@@ -68,7 +68,7 @@ namespace PeterDB {
                 &tablesTableAttributeAndValues);
         void *tablesTableAttributeAndValuesData = malloc(tablesTableAttributeAndValuesDataSize);
 
-        AttributeAndValueSerializer::serialize(&tablesTableAttributeAndValues, tablesTableAttributeAndValuesData);
+        AttributeAndValueSerializer::serialize(tablesTableAttributeAndValues, tablesTableAttributeAndValuesData);
 
         // insert into table "Tables"
         RID rid1;
@@ -528,7 +528,7 @@ namespace PeterDB {
         void *tablesTableAttributeAndValuesData = malloc(tablesTableAttributeAndValuesDataSize);
 
         // prepare DATA
-        AttributeAndValueSerializer::serialize(&tablesTableAttributeAndValues, tablesTableAttributeAndValuesData);
+        AttributeAndValueSerializer::serialize(tablesTableAttributeAndValues, tablesTableAttributeAndValuesData);
 
         // insert into table "Tables"
         RID rid1;
@@ -545,7 +545,7 @@ namespace PeterDB {
         void *attributesTableAttributeAndValuesData = malloc(attributesTableAttributeAndValuesDataSize);
 
         // prepare DATA
-        AttributeAndValueSerializer::serialize(&attributesTableAttributeAndValues, attributesTableAttributeAndValuesData);
+        AttributeAndValueSerializer::serialize(attributesTableAttributeAndValues, attributesTableAttributeAndValuesData);
 
         // insert into table "Tables"
         RID rid;
@@ -574,7 +574,7 @@ namespace PeterDB {
 
             size_t serializedSize = AttributeAndValueSerializer::computeSerializedDataLenBytes(&attributeAndValues);
             void *serializedData = malloc(serializedSize);
-            AttributeAndValueSerializer::serialize(&attributeAndValues, serializedData);
+            AttributeAndValueSerializer::serialize(attributeAndValues, serializedData);
             m_rbfm->insertRecord(attributesTblFileHandle,
                                  CatalogueConstants::attributesTableAttributes, serializedData, rid);
             free(serializedData);
@@ -594,7 +594,7 @@ namespace PeterDB {
 
             size_t serializedSize = AttributeAndValueSerializer::computeSerializedDataLenBytes(&attributeAndValues);
             void *serializedData = malloc(serializedSize);
-            AttributeAndValueSerializer::serialize(&attributeAndValues, serializedData);
+            AttributeAndValueSerializer::serialize(attributeAndValues, serializedData);
             m_rbfm->insertRecord(attributesTblFileHandle,
                                  CatalogueConstants::attributesTableAttributes, serializedData, rid);
             free(serializedData);
@@ -645,7 +645,7 @@ namespace PeterDB {
 
             size_t serializedSize = AttributeAndValueSerializer::computeSerializedDataLenBytes(&attributeAndValues);
             void *serializedData = malloc(serializedSize);
-            AttributeAndValueSerializer::serialize(&attributeAndValues, serializedData);
+            AttributeAndValueSerializer::serialize(attributeAndValues, serializedData);
             m_rbfm->insertRecord(attributesTblFileHandle,
                                  CatalogueConstants::attributesTableAttributes, serializedData, rid);
             free(serializedData);

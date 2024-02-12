@@ -9,16 +9,16 @@ namespace PeterDB {
     public:
         static unsigned int computeSerializedDataLenBytes(std::vector<AttributeAndValue> *attributeAndValues);
 
-        static void serialize(std::vector<AttributeAndValue> *attributeAndValues, void *data);
+        static void serialize(const std::vector<AttributeAndValue> &attributeAndValues, void *data);
     private:
 
         static unsigned int computeNullFlagSizeBytes(unsigned int numFields);
 
         static unsigned int computeAttributeValuesLengthBytes(std::vector<AttributeAndValue> *attributeAndValues);
 
-        static void computeAndAddNullFlag(std::vector<AttributeAndValue> *attributesAndValues, void *data);
+        static void computeAndAddNullFlag(const std::vector<AttributeAndValue> &attributesAndValues, void *data);
 
-        static void concatAttributeValues(std::vector<AttributeAndValue> *attributeAndValues, byte *data);
+        static void concatAttributeValues(const std::vector<AttributeAndValue> &attributeAndValues, byte *data);
 
         static unsigned int getAttributeValueSize(const AttributeAndValue &attributeAndValue);
     };

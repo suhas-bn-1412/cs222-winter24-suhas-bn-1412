@@ -11,9 +11,9 @@ namespace PeterDB {
         return nullFlagSizeBytes + attributeValuesLengthBytes;
     }
 
-    void AttributeAndValueSerializer::serialize(std::vector<AttributeAndValue> *attributeAndValues, void *data) {
+    void AttributeAndValueSerializer::serialize(const std::vector<AttributeAndValue> &attributeAndValues, void *data) {
         assert(data != nullptr);
-        unsigned int nullFlagLenBytes = computeNullFlagSizeBytes(attributeAndValues->size());
+        unsigned int nullFlagLenBytes = computeNullFlagSizeBytes(attributeAndValues.size());
         computeAndAddNullFlag(attributeAndValues, data);
         concatAttributeValues(attributeAndValues, (byte *) data + nullFlagLenBytes);
     }
@@ -30,15 +30,29 @@ namespace PeterDB {
         return attributeValuesLengthBytes;
     }
 
-    void AttributeAndValueSerializer::computeAndAddNullFlag(std::vector<AttributeAndValue> *attributesAndValues, void *data) {
-        unsigned int nullFlagLengthBytes = computeNullFlagSizeBytes(attributesAndValues->size());
+    void AttributeAndValueSerializer::computeAndAddNullFlag(const std::vector<AttributeAndValue> &attributesAndValues, void *data) {
+        unsigned int nullFlagLengthBytes = computeNullFlagSizeBytes(attributesAndValues.size());
         memset(data, 0, nullFlagLengthBytes);
-        //todo: handle null fields
+
+        byte *dataPtr = (byte *) data;
+        unsigned int bitNum = 0;
+        for (const auto& attributeAndValue: attributesAndValues) {
+            if (attributeAndValue.getValue() == nullptr) {
+                assert(1);
+                //todo: handle null fields, but they shud not happen, as this serializer only used internally
+            }
+
+            bitNum++;
+            if (bitNum == NUM_BITS_PER_BYTE ) {
+                bitNum = 0;
+                dataPtr++;
+            }
+        }
     }
 
-    void AttributeAndValueSerializer::concatAttributeValues(std::vector<AttributeAndValue> *attributeAndValues, byte *data) {
+    void AttributeAndValueSerializer::concatAttributeValues(const std::vector<AttributeAndValue> &attributeAndValues, byte *data) {
         byte *dest = data;
-        for (const auto &attributeAndValue: *attributeAndValues) {
+        for (const auto& attributeAndValue: attributeAndValues) {
             uint32_t attrValueSize = getAttributeValueSize(attributeAndValue);
             AttrType attrType = attributeAndValue.getAttribute().type;
             if (attrType == TypeVarChar) {

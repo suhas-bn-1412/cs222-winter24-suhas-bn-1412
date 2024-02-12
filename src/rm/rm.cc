@@ -77,6 +77,54 @@ namespace PeterDB {
         return 0;
     }
 
+    int RelationManager::computeNextTableId() {
+        // go through table Tables and get the number of entries
+        // next tableid = cur num of tables + 1
+
+        // create fileHandle for accessing table Tables
+        FileHandle tableFileHandle;
+        if (0 != m_rbfm->openFile(CatalogueConstants::TABLES_FILE_NAME, tableFileHandle)) {
+            ERROR("Error while opening Tables file");
+            assert(0);
+            return 0;
+        }
+
+        // prepare conditions for scanning Tables table
+        auto attrToReadFromTablesTable = std::vector<std::string>(1, TABLE_ATTR_NAME_ID);
+        std::string conditionAttr = "";
+        void* conditionValue = nullptr;
+
+        RBFM_ScanIterator rbfmsi;
+        auto scan = m_rbfm->scan(tableFileHandle,
+                                 CatalogueConstants::tablesTableAttributes,
+                                 conditionAttr,
+                                 NO_OP,
+                                 conditionValue,
+                                 attrToReadFromTablesTable,
+                                 rbfmsi);
+        if (0 != scan) {
+            ERROR("Error while trying to get a rbfm scan iterator for Tables table");
+            m_rbfm->closeFile(tableFileHandle);
+            return -1;
+        }
+
+        // using scan iterator for the table, read the entry for tabeName and read only the id
+        // construct the data into which the id is written
+        void* tableIdData = malloc(4 + 1 + 4); // num of attrs in the record, nullflag byte, bytes to store table-id data
+        assert(nullptr != tableIdData);
+        RID tableIdRid;
+
+        int numTables = 0;
+        while(RBFM_EOF != rbfmsi.getNextRecord(tableIdRid, tableIdData)) {
+            numTables++;
+        }
+
+        assert(numTables-1 == *((uint32_t*) ( (char*)tableIdData + 5 )) );
+
+        free(tableIdData);
+        return numTables;
+    }
+
     AttrType getAttrType(uint32_t attrType) {
         assert(attrType <= TypeVarChar);
 

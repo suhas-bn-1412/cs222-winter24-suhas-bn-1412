@@ -18,14 +18,18 @@
 
 namespace PeterDB {
 
+    class TablesAttributeConstants {
+    public:
+        static const Attribute TABLE_ID;
+        static const Attribute TABLE_NAME;
+        static const Attribute TABLE_FILENAME;
+    };
+
     class CatalogueConstantsBuilder {
     public:
-        static std::vector <Attribute> buildTablesTableAttributes();
-        static std::vector <Attribute> buildAttributesTableAttributes();
-
         // Attributes and values to insert into "Tables" table
-        static std::vector<AttributeAndValue> buildTablesTableAttributeAndValues();
-        static std::vector<AttributeAndValue> buildAttributesTableAttributeAndValues();
+        static void buildTablesTableAttributeAndValues(std::vector<AttributeAndValue>&);
+        static void buildAttributesTableAttributeAndValues(std::vector<AttributeAndValue>&);
     };
 }
 

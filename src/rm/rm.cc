@@ -2,7 +2,6 @@
 #include "src/include/catalogueConstants.h"
 #include "src/include/attributeAndValueSerializer.h"
 #include "src/include/attributesAttributeConstants.h"
-#include "src/include/tablesAttributeConstants.h"
 
 namespace PeterDB {
     RelationManager &RelationManager::instance() {
@@ -500,7 +499,8 @@ namespace PeterDB {
         // PREPARE AND INSERT ROW #1
 
         // Fetch attributes
-        std::vector<AttributeAndValue> tablesTableAttributeAndValues = CatalogueConstantsBuilder::buildTablesTableAttributeAndValues();
+        std::vector<AttributeAndValue> tablesTableAttributeAndValues;
+        CatalogueConstantsBuilder::buildTablesTableAttributeAndValues(tablesTableAttributeAndValues);
         size_t tablesTableAttributeAndValuesDataSize = AttributeAndValueSerializer::computeSerializedDataLenBytes(
                 &tablesTableAttributeAndValues);
         void *tablesTableAttributeAndValuesData = malloc(tablesTableAttributeAndValuesDataSize);
@@ -516,7 +516,8 @@ namespace PeterDB {
         // PREPARE AND INSERT ROW #1
 
         // Fetch attributes
-        std::vector<AttributeAndValue> attributesTableAttributeAndValues = CatalogueConstantsBuilder::buildAttributesTableAttributeAndValues();
+        std::vector<AttributeAndValue> attributesTableAttributeAndValues;
+        CatalogueConstantsBuilder::buildAttributesTableAttributeAndValues(attributesTableAttributeAndValues);
         size_t attributesTableAttributeAndValuesDataSize = AttributeAndValueSerializer::computeSerializedDataLenBytes(
                 &attributesTableAttributeAndValues);
         void *attributesTableAttributeAndValuesData = malloc(attributesTableAttributeAndValuesDataSize);
@@ -539,8 +540,8 @@ namespace PeterDB {
 
         // ================= PREPARE AND INSERT ATTRS FOR "TABLES" TABLE INTO "ATTRIBUTES"
         int tid = 0;
-        std::vector<std::vector<AttributeAndValue>> tablesTableAttributesForAttributesTable =
-                buildAttributesForAttributesTable(tid, CatalogueConstants::tablesTableAttributes);
+        std::vector<std::vector<AttributeAndValue>> tablesTableAttributesForAttributesTable;
+        buildAttributesForAttributesTable(tid, CatalogueConstants::tablesTableAttributes, tablesTableAttributesForAttributesTable);
 
         // Open the file for table "Attributes"
         FileHandle attributesTblFileHandle;
@@ -560,8 +561,8 @@ namespace PeterDB {
 
         // ================= PREPARE AND INSERT ATTRS FOR "TABLES" TABLE INTO "ATTRIBUTES"
         tid = 1;
-        std::vector<std::vector<AttributeAndValue>> attributesTableAttributeForAttributesTable =
-                buildAttributesForAttributesTable(tid, CatalogueConstants::attributesTableAttributes);
+        std::vector<std::vector<AttributeAndValue>> attributesTableAttributeForAttributesTable;
+        buildAttributesForAttributesTable(tid, CatalogueConstants::attributesTableAttributes, attributesTableAttributeForAttributesTable);
 
         // Open the file for table "Attributes"
         m_rbfm->openFile(CatalogueConstants::ATTRIBUTES_FILE_NAME, attributesTblFileHandle);
@@ -578,9 +579,9 @@ namespace PeterDB {
         m_rbfm->closeFile(attributesTblFileHandle);
     }
 
-    std::vector<std::vector<AttributeAndValue>>
-    RelationManager::buildAttributesForAttributesTable(int tableId, const std::vector<Attribute> &attributes) {
-        std::vector<std::vector<AttributeAndValue>> attrsAndValuesForAttrsTable;
+    void RelationManager::buildAttributesForAttributesTable(int tableId,
+                                                            const std::vector<Attribute> &attributes,
+                                                            std::vector<std::vector<AttributeAndValue>> &attrsAndValuesForAttrsTable) {
         int attributePosition = 0;
         for (const Attribute &attribute: attributes) {
             std::vector<AttributeAndValue> attrsAndValues;
@@ -604,13 +605,12 @@ namespace PeterDB {
             attrsAndValuesForAttrsTable.push_back(attrsAndValues);
             attributePosition++;
         }
-        return attrsAndValuesForAttrsTable;
     }
 
     void RelationManager::buildAndInsertAttributesIntoAttributesTable(const std::vector<Attribute> &attrs, int tid) {
         // 1. build AttributesAndValues for attributes table
-        std::vector<std::vector<AttributeAndValue>> attributesForAttributesTable =
-                buildAttributesForAttributesTable(tid, attrs);
+        std::vector<std::vector<AttributeAndValue>> attributesForAttributesTable;
+        buildAttributesForAttributesTable(tid, attrs, attributesForAttributesTable);
 
         // 2. Insert AttributesAndValues into "Attributes" table
 

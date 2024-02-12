@@ -124,8 +124,9 @@ namespace PeterDB {
 
         void initAttributesTable();
 
-        std::vector<std::vector<AttributeAndValue>>
-        buildAttributesForAttributesTable(int tableId, const std::vector<Attribute> &attributes);
+        void buildAttributesForAttributesTable(int tableId,
+                                               const std::vector<Attribute> &attributes,
+                                               std::vector<std::vector<AttributeAndValue>>&);
 
         int computeNextTableId();
 

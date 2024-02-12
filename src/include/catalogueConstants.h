@@ -20,7 +20,6 @@ namespace PeterDB {
         static const std::vector<Attribute> tablesTableAttributes;
         static const std::vector<Attribute> attributesTableAttributes;
     };
-
 }
 
 #endif

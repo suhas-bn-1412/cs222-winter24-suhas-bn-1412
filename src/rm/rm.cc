@@ -143,6 +143,7 @@ namespace PeterDB {
         while(RBFM_EOF != rbfmsi.getNextRecord(tableIdRid, tableIdData)) {
             numTables++;
         }
+        rbfmsi.close();
 
         free(tableIdData);
         return numTables;
@@ -255,6 +256,7 @@ namespace PeterDB {
             free(tableIdData);
             return -1;
         }
+        rbfmsi.close();
         m_rbfm->closeFile(tableFileHandle);
 
         // now tableIdData is as follows
@@ -303,6 +305,7 @@ namespace PeterDB {
             attrs.push_back(attr);
             memset(data, 0, maxSpaceReq);
         }
+        rbfmsi.close();
 
         m_rbfm->closeFile(attributesFileHandle);
         free(data);
@@ -473,6 +476,7 @@ namespace PeterDB {
     }
 
     RC RM_ScanIterator::close() {
+        m_rbfmsi.close();
         return m_rbfm->closeFile(m_fh);
     }
 

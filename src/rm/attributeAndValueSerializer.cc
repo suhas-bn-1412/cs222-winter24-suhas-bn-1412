@@ -26,6 +26,9 @@ namespace PeterDB {
         unsigned int attributeValuesLengthBytes = 0;
         for (const auto& attributeAndValue: *attributeAndValues) {
             attributeValuesLengthBytes += getAttributeValueSize(attributeAndValue);
+            if (TypeVarChar == attributeAndValue.getAttribute().type) {
+                attributeValuesLengthBytes += 4;
+            }
         }
         return attributeValuesLengthBytes;
     }
@@ -59,8 +62,8 @@ namespace PeterDB {
                 // prefix the size
                 memmove(dest, &attrValueSize, sizeof(uint32_t));
                 dest += sizeof(uint32_t);
-                memcpy(dest, attributeAndValue.getValue(), attrValueSize - sizeof(uint32_t));
-                dest += attrValueSize - sizeof(uint32_t);
+                memcpy(dest, attributeAndValue.getValue(), attrValueSize);
+                dest += attrValueSize;
             } else {
                 memcpy(dest, attributeAndValue.getValue(), attrValueSize);
                 dest += attrValueSize;
@@ -82,7 +85,6 @@ namespace PeterDB {
             case TypeVarChar:
                 uint32_t varcharValSize;
                 memmove(&varcharValSize, attributeAndValue.getValue(), sizeof(varcharValSize));
-                attributeDataSize += sizeof(varcharValSize);
                 attributeDataSize += varcharValSize;
                 break;
         }

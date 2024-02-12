@@ -279,8 +279,8 @@ namespace PeterDB {
         void *tmp = dataToBeRead;
         dataToBeRead = (void*)( (char*)dataToBeRead + 1 /*for null flag*/);
         if (TypeVarChar == attrInfo.type) {
-            auto len = *( (uint32_t*) dataToBeRead );
-            memmove(data, (void*)( (char*) dataToBeRead + VARCHAR_ATTR_LEN_SZ ), len);
+            auto len = VARCHAR_ATTR_LEN_SZ + *( (uint32_t*) dataToBeRead );
+            memmove(data, dataToBeRead, len);
         } else {
             memmove(data, dataToBeRead, INT_SZ);
         }
@@ -396,8 +396,39 @@ namespace PeterDB {
         m_recodrdDescriptor = recordDescriptor;
         m_conditionAttribute = conditionAttribute;
         m_compOp = compOp;
-        m_value = value;
         m_attributeNames = attributeNames;
+
+        auto attrType = TypeInt;
+        for (auto &attr : recordDescriptor) {
+            if (attr.name == conditionAttribute) {
+                attrType = attr.type;
+                break;
+            }
+        }
+
+        if (nullptr != value) {
+            unsigned bytesToCopy = 0;
+            switch (attrType) {
+                case TypeInt:
+                case TypeReal:
+                    bytesToCopy = INT_SZ;
+                case TypeVarChar:
+                    bytesToCopy = VARCHAR_ATTR_LEN_SZ + *( (uint32_t*) value );
+                default:
+                    break;
+            }
+
+            m_value = malloc(bytesToCopy);
+            assert(nullptr != m_value);
+            memmove(m_value, value, bytesToCopy);
+        }
+    }
+
+    RC RBFM_ScanIterator::close() {
+        m_initDone = false;
+        free(m_value);
+        m_value = nullptr;
+        return 0;
     }
 
     bool RBFM_ScanIterator::pickNextValidRID() {
@@ -527,7 +558,7 @@ namespace PeterDB {
 
         for (auto &recordInfo : m_recodrdDescriptor) {
             if (recordInfo.name == m_conditionAttribute) {
-                data = malloc(recordInfo.length);
+                data = malloc( VARCHAR_ATTR_LEN_SZ + recordInfo.length );
                 memset(data, 0, recordInfo.length);
                 condAttrType = recordInfo.type;
 

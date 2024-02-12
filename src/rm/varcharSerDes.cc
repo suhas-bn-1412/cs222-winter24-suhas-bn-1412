@@ -3,6 +3,7 @@
 
 namespace PeterDB {
 
+    //todo: refactor to use string reference/ ptr instead of copy
     size_t VarcharSerDes::computeSerializedSize(std::string string) {
         return VARCHAR_SIZE_SPECIFIER_SIZE + string.length();
     }

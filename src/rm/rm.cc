@@ -1,6 +1,7 @@
 #include "src/include/rm.h"
 #include "src/include/catalogueConstants.h"
 #include "src/include/attributeAndValueSerializer.h"
+#include "src/include/attributesAttributeConstants.h"
 
 namespace PeterDB {
     RelationManager &RelationManager::instance() {
@@ -24,9 +25,9 @@ namespace PeterDB {
     }
 
     RC RelationManager::createCatalog() {
-        initAttributesTable();
         initTablesTable();
-        return -1;
+        initAttributesTable();
+        return 0;
     }
 
     RC RelationManager::deleteCatalog() {
@@ -362,15 +363,6 @@ namespace PeterDB {
         return -1;
     }
 
-    void RelationManager::initAttributesTable() {
-
-
-
-        std::string tableName = CatalogueConstants::ATTRIBUTES_TABLE_NAME;
-        std::vector<Attribute> attributes = CatalogueConstants::attributesTableAttributes;
-
-    }
-
     void RelationManager::initTablesTable() {
         // Create a file for table "Tables"
         m_rbfm->createFile(CatalogueConstants::TABLES_FILE_NAME);
@@ -415,6 +407,81 @@ namespace PeterDB {
                              attributesTableAttributeAndValuesData, rid);
 
         m_rbfm->closeFile(tablesFileHandle);
+    }
+
+    void RelationManager::initAttributesTable() {
+        // Create a file for table "Attributes"
+        m_rbfm->createFile(CatalogueConstants::ATTRIBUTES_FILE_NAME);
+
+
+        // ================= PREPARE AND INSERT ATTRS FOR "TABLES" TABLE INTO "ATTRIBUTES"
+        int tid = 0;
+        std::vector<std::vector<AttributeAndValue>> tablesTableAttributesForAttributesTable =
+                buildAttributesForAttributesTable(tid, CatalogueConstants::tablesTableAttributes);
+
+        // Open the file for table "Attributes"
+        FileHandle attributesTblFileHandle;
+        m_rbfm->openFile(CatalogueConstants::ATTRIBUTES_FILE_NAME, attributesTblFileHandle);
+        for (auto attributeAndValues: tablesTableAttributesForAttributesTable) {
+            RID rid;
+
+            size_t serializedSize = AttributeAndValueSerializer::computeSerializedDataLenBytes(&attributeAndValues);
+            void *serializedData = malloc(serializedSize);
+            AttributeAndValueSerializer::serialize(&attributeAndValues, serializedData);
+            m_rbfm->insertRecord(attributesTblFileHandle,
+                                 CatalogueConstants::attributesTableAttributes, serializedData, rid);
+            free(serializedData);
+        }
+        m_rbfm->closeFile(attributesTblFileHandle);
+
+
+        // ================= PREPARE AND INSERT ATTRS FOR "TABLES" TABLE INTO "ATTRIBUTES"
+        tid = 1;
+        std::vector<std::vector<AttributeAndValue>> attributesTableAttributeForAttributesTable =
+                buildAttributesForAttributesTable(tid, CatalogueConstants::attributesTableAttributes);
+
+        // Open the file for table "Attributes"
+        m_rbfm->openFile(CatalogueConstants::ATTRIBUTES_FILE_NAME, attributesTblFileHandle);
+        for (auto attributeAndValues: attributesTableAttributeForAttributesTable) {
+            RID rid;
+
+            size_t serializedSize = AttributeAndValueSerializer::computeSerializedDataLenBytes(&attributeAndValues);
+            void *serializedData = malloc(serializedSize);
+            AttributeAndValueSerializer::serialize(&attributeAndValues, serializedData);
+            m_rbfm->insertRecord(attributesTblFileHandle,
+                                 CatalogueConstants::attributesTableAttributes, serializedData, rid);
+            free(serializedData);
+        }
+        m_rbfm->closeFile(attributesTblFileHandle);
+    }
+
+    std::vector<std::vector<AttributeAndValue>>
+    RelationManager::buildAttributesForAttributesTable(int tableId, const std::vector<Attribute> &attributes) {
+        std::vector<std::vector<AttributeAndValue>> attrsAndValuesForAttrsTable;
+        int attributePosition = 0;
+        for (const Attribute &attribute: attributes) {
+            std::vector<AttributeAndValue> attrsAndValues;
+
+            // tid
+            attrsAndValues.push_back(AttributeAndValue{AttributesAttributeConstants::TABLE_ID, &tableId});
+
+            // attr name
+            attrsAndValues.push_back(AttributeAndValue{AttributesAttributeConstants::ATTRIBUTE_NAME,(void*) &(attribute.name)});
+
+            // todo: recheck conversion
+            // attr type
+            attrsAndValues.push_back(AttributeAndValue{AttributesAttributeConstants::ATTRIBUTE_TYPE, (void*) &(attribute.type)});
+
+            // attr length
+            attrsAndValues.push_back(AttributeAndValue{AttributesAttributeConstants::ATTRIBUTE_LENGTH, (void*) &(attribute.length)});
+
+            // attr position
+            attrsAndValues.push_back(AttributeAndValue{AttributesAttributeConstants::ATTRIBUTE_POSITION, (void*) &attributePosition});
+
+            attrsAndValuesForAttrsTable.push_back(attrsAndValues);
+            attributePosition++;
+        }
+        return attrsAndValuesForAttrsTable;
     }
 
 

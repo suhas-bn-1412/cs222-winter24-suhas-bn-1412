@@ -1,15 +1,20 @@
 #include "src/include/attributeAndValue.h"
+#include "src/include/varcharSerDes.h"
 
 namespace PeterDB {
 
     AttributeAndValue::AttributeAndValue(const Attribute &attribute, void *value) {
         m_attribute = attribute;
-        // we ensure enough capacity for the max length that the attribute value can have
-        // if the attribute type is a varchar, the attr value must have its
-        // actual length encoded into its first 4 bytes
-        m_value = malloc(m_attribute.length);
-        assert(m_value != nullptr);
-        memcpy(m_value, value, m_attribute.length);
+        if (m_attribute.type == TypeVarChar) {
+            auto *string = (std::string*) value;
+            m_value = malloc(VarcharSerDes::computeSerializedSize(*string));
+            assert(m_value != nullptr);
+            VarcharSerDes::serialize(*string, m_value);
+        } else {
+            m_value = malloc(m_attribute.length);
+            assert(m_value != nullptr);
+            memcpy(m_value, value, m_attribute.length);
+        }
     }
 
     AttributeAndValue::~AttributeAndValue() {

@@ -1,7 +1,7 @@
 #include "src/include/attributeAndValueSerializer.h"
 #include <cmath>
 
-#define NUM_BITS_PER_BYTE 8
+#define NUM_BITS_PER_BYTE 8.0
 
 namespace PeterDB {
 
@@ -45,9 +45,12 @@ namespace PeterDB {
                 // prefix the size
                 memcpy(dest, &attrValueSize, sizeof(uint32_t));
                 dest += sizeof(uint32_t);
+                memcpy(dest, attributeAndValue.getValue(), attrValueSize - sizeof(uint32_t));
+                dest += attrValueSize - sizeof(uint32_t);
+            } else {
+                memcpy(dest, attributeAndValue.getValue(), attrValueSize);
+                dest += attrValueSize;
             }
-            memcpy(dest, attributeAndValue.getValue(), attrValueSize);
-            dest += attrValueSize;
         }
     }
 

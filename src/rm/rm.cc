@@ -34,11 +34,15 @@ namespace PeterDB {
     RC RelationManager::deleteCatalog() {
         m_rbfm->destroyFile(CatalogueConstants::TABLES_FILE_NAME);
         m_rbfm->destroyFile(CatalogueConstants::ATTRIBUTES_FILE_NAME);
+        return 0;
     }
 
     RC RelationManager::createTable(const std::string &tablezName, const std::vector<Attribute> &attrs) {
         // find next TID
         int tid = computeNextTableId();
+        if (tid == -1) {
+            return -1;
+        }
         std::string tableFileName = getFileName(tablezName);
 
         // ======= STEP 1
@@ -85,8 +89,7 @@ namespace PeterDB {
         FileHandle tableFileHandle;
         if (0 != m_rbfm->openFile(CatalogueConstants::TABLES_FILE_NAME, tableFileHandle)) {
             ERROR("Error while opening Tables file");
-            assert(0);
-            return 0;
+            return -1;
         }
 
         // prepare conditions for scanning Tables table
@@ -176,41 +179,6 @@ namespace PeterDB {
         }
 
         return 0;
-    }
-
-    AttrType getAttrType(uint32_t attrType) {
-        assert(attrType <= TypeVarChar);
-
-        if (TypeInt == attrType) return TypeInt;
-        if (TypeReal == attrType) return TypeReal;
-        if (TypeVarChar == attrType) return TypeVarChar;
-
-        assert(0);
-        return TypeInt;
-    }
-
-    Attribute getAttributeFromData(void* data) {
-        // we have data in the following format
-        // first 4 bytes = num of fields present in the returned data = attrsToReadFromAttributesTable.size()
-        // next 1 bytes = representing the nullFlags of all the attibutes
-        // next 4 bytes = length of the varchar holding the attribute name = n
-        // next n bytes = attribute name
-        // next 4 bytes = attribute type
-        // next 4 bytes = attribute length
-        assert(3 == *( (uint32_t*) data ) );
-
-        uint32_t strlen = *( (uint32_t*) ( (char*)data + 5) );
-        std::string attr_name;
-        attr_name.assign(( (char*)data + 4 + 1 + 4), strlen);
-
-        uint32_t attr_type = *( (uint32_t*) ((char*)data + 4 + 1 + 4 + strlen) );
-        uint32_t attr_length = *( (uint32_t*) ((char*)data + 4 + 1 + 4 + strlen + 4) );
-
-        Attribute attr;
-        attr.name = attr_name;
-        attr.type = getAttrType(attr_type);
-        attr.length = attr_length;
-        return attr;
     }
 
     RC RelationManager::getAttributes(const std::string &tableName, std::vector<Attribute> &attrs) {
@@ -660,11 +628,6 @@ namespace PeterDB {
             free(serializedData);
         }
         m_rbfm->closeFile(attributesTblFileHandle);
-    }
-
-    int RelationManager::computeNextTableId() {
-        //todo:
-        return 0;
     }
 
     RM_IndexScanIterator::RM_IndexScanIterator() = default;

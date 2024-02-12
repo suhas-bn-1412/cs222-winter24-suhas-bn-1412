@@ -120,9 +120,6 @@ namespace PeterDB {
         // opens both Tables table and Attributes table
         RC openTablesAndAttributesFH(FileHandle& tableFileHandle, FileHandle& attributesFileHandle);
 
-        // given table name, creates fileHandle and Record descriptor
-        RC getFileHandleAndAttributes(const std::string& tableName, FileHandle& fh, std::vector<Attribute>& attrs);
-
         void initTablesTable();
 
         void initAttributesTable();
@@ -133,9 +130,6 @@ namespace PeterDB {
         int computeNextTableId();
 
         void buildAndInsertAttributesIntoAttributesTable(const std::vector<Attribute> &attrs, int tid);
-
-        // given table name, creates fileHandle and Record descriptor
-        RC getFileHandleAndAttributes(const std::string& tableName, FileHandle& fh, std::vector<Attribute>& attrs);
     };
 
 } // namespace PeterDB

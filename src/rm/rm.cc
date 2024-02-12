@@ -26,8 +26,10 @@ namespace PeterDB {
 
     RC RelationManager::createCatalog() {
         m_catalogCreated = true;
+        INFO("Creating Catalogue\n");
         initTablesTable();
         initAttributesTable();
+        INFO("Created Catalogue\n");
         return 0;
     }
 
@@ -49,6 +51,7 @@ namespace PeterDB {
 
         // find next TID
         int tid = computeNextTableId();
+        INFO("Creating table for tableName=%s; allottedTID=%d\n", tablezName.data(), tid);
         if (tid == -1) {
             return -1;
         }
@@ -504,6 +507,7 @@ namespace PeterDB {
     }
 
     void RelationManager::initTablesTable() {
+        INFO("Initializing \"Tables\"\n");
         // Create a file for table "Tables"
         m_rbfm->createFile(CatalogueConstants::TABLES_FILE_NAME);
 
@@ -552,6 +556,7 @@ namespace PeterDB {
     }
 
     void RelationManager::initAttributesTable() {
+        INFO("Initializing \"Attributes\"\n");
         // Create a file for table "Attributes"
         m_rbfm->createFile(CatalogueConstants::ATTRIBUTES_FILE_NAME);
 

@@ -2,6 +2,7 @@
 #define _catalogue_constants_builder_h_
 
 #include "rbfm.h"
+#include "attributeAndValue.h"
 #include <vector>
 
 #define INTEGER_ATTRIBUTE_LENGTH 4
@@ -21,6 +22,10 @@ namespace PeterDB {
     public:
         static std::vector <Attribute> buildTablesTableAttributes();
         static std::vector <Attribute> buildAttributesTableAttributes();
+
+        // Attributes and values to insert into "Tables" table
+        static std::vector<AttributeAndValue> buildTablesTableAttributeAndValues();
+        static std::vector<AttributeAndValue> buildAttributesTableAttributeAndValues();
     };
 }
 

@@ -87,7 +87,7 @@ namespace PeterDB {
         of = m_rbfm->openFile(CatalogueConstants::TABLES_FILE_NAME, attributesFileHandle);
         if (0 != of) {
             ERROR("Error while opening %s file", CatalogueConstants::TABLES_FILE_NAME);
-            tableFileHandle.closeFile();
+            m_rbfm->closeFile(tableFileHandle);
             return of;
         }
 
@@ -127,8 +127,8 @@ namespace PeterDB {
                                  rbfmsi);
         if (0 != scan) {
             ERROR("Error while trying to get a rbfm scan iterator for Tables table");
-            tableFileHandle.closeFile();
-            attributesFileHandle.closeFile();
+            m_rbfm->closeFile(tableFileHandle);
+            m_rbfm->closeFile(attributesFileHandle);
             free(conditionValue);
             return -1;
         }
@@ -143,12 +143,12 @@ namespace PeterDB {
         auto gn = rbfmsi.getNextRecord(tableIdRid, tableIdData);
         if (0 != gn) {
             ERROR("Error while getting table id for table %s, from Tables table", tableName);
-            tableFileHandle.closeFile();
-            attributesFileHandle.closeFile();
+            m_rbfm->closeFile(tableFileHandle);
+            m_rbfm->closeFile(attributesFileHandle);
             free(tableIdData);
             return -1;
         }
-        tableFileHandle.closeFile();
+        m_rbfm->closeFile(tableFileHandle);
 
         // now tableIdData is as follows
         // first 4 bytes =  1, representing there is only one attribute projected out of the scan
@@ -179,7 +179,7 @@ namespace PeterDB {
                             rbfmsi);
         if (0 != scan) {
             ERROR("Error while trying to get rbfm scan iterator for Attributes table");
-            attributesFileHandle.closeFile();
+            m_rbfm->closeFile(attributesFileHandle);
             free(tableIdData);
             return -1;
         }
@@ -197,7 +197,7 @@ namespace PeterDB {
             memset(data, 0, maxSpaceReq);
         }
 
-        attributesFileHandle.closeFile();
+        m_rbfm->closeFile(attributesFileHandle);
         free(data);
 
         return 0;
@@ -231,10 +231,10 @@ namespace PeterDB {
 
         if ( 0 != m_rbfm->insertRecord(fh, attrs, data, rid)) {
             ERROR("Error while inserting the record into table %s", tableName);
-            fh.closeFile();
+            m_rbfm->closeFile(fh);
             return -1;
         }
-        fh.closeFile();
+        m_rbfm->closeFile(fh);
         return 0;
     }
 
@@ -249,10 +249,10 @@ namespace PeterDB {
 
         if ( 0 != m_rbfm->deleteRecord(fh, attrs, rid)) {
             ERROR("Error while deleting the record from table %s", tableName);
-            fh.closeFile();
+            m_rbfm->closeFile(fh);
             return -1;
         }
-        fh.closeFile();
+        m_rbfm->closeFile(fh);
         return 0;
     }
 
@@ -267,10 +267,10 @@ namespace PeterDB {
 
         if ( 0 != m_rbfm->updateRecord(fh, attrs, data, rid)) {
             ERROR("Error while updating the record in table %s", tableName);
-            fh.closeFile();
+            m_rbfm->closeFile(fh);
             return -1;
         }
-        fh.closeFile();
+        m_rbfm->closeFile(fh);
         return 0;
     }
 
@@ -285,10 +285,10 @@ namespace PeterDB {
 
         if (0 != m_rbfm->readRecord(fh, attrs, rid, data)) {
             ERROR("Error while reading the record from table %s", tableName);
-            fh.closeFile();
+            m_rbfm->closeFile(fh);
             return -1;
         }
-        fh.closeFile();
+        m_rbfm->closeFile(fh);
         return 0;
     }
 
@@ -308,10 +308,10 @@ namespace PeterDB {
 
         if (0 != m_rbfm->readAttribute(fh, attrs, rid, attributeName, data)) {
             ERROR("Error while reading an attribute from table %s", tableName);
-            fh.closeFile();
+            m_rbfm->closeFile(fh);
             return -1;
         }
-        fh.closeFile();
+        m_rbfm->closeFile(fh);
         return 0;
     }
 
@@ -321,16 +321,53 @@ namespace PeterDB {
                              const void *value,
                              const std::vector<std::string> &attributeNames,
                              RM_ScanIterator &rm_ScanIterator) {
-        return -1;
+        if (0 != rm_ScanIterator.init(this, m_rbfm, tableName)) {
+            return -1;
+        }
+        return rm_ScanIterator.initRbfmsi(conditionAttribute, compOp, value, attributeNames);
     }
 
     RM_ScanIterator::RM_ScanIterator() = default;
 
     RM_ScanIterator::~RM_ScanIterator() = default;
 
-    RC RM_ScanIterator::getNextTuple(RID &rid, void *data) { return RM_EOF; }
+    RC RM_ScanIterator::init(RelationManager *rm, RecordBasedFileManager *rbfm, const std::string &tableName) {
+        m_initDone = true;
+        m_rm = rm;
+        m_rbfm = rbfm;
 
-    RC RM_ScanIterator::close() { return -1; }
+        if (0 != m_rm->getFileHandleAndAttributes(tableName, m_fh, m_attrs)) {
+            ERROR("Error while initialising a scan iterator. Failed while creating file handle");
+            return -1;
+        }
+        return 0;
+    }
+
+    RC RM_ScanIterator::initRbfmsi(const std::string &conditionAttribute,
+                                   const CompOp compOp,
+                                   const void *value,
+                                   const std::vector<std::string> &attributeNames) {
+        assert(m_initDone == true);
+
+        if (0 != m_rbfm->scan(m_fh, m_attrs, conditionAttribute, compOp, value, attributeNames, m_rbfmsi)) {
+            ERROR("Error while init'ing RBFM scan iterator");
+            return -1;
+        }
+        return 0;
+   }
+
+    RC RM_ScanIterator::getNextTuple(RID &rid, void *data) {
+        assert(true == m_initDone);
+
+        if (RBFM_EOF != m_rbfmsi.getNextRecord(rid, data)) {
+            return 0;
+        }
+        return RM_EOF;
+    }
+
+    RC RM_ScanIterator::close() {
+        return m_rbfm->closeFile(m_fh);
+    }
 
     // Extra credit work
     RC RelationManager::dropAttribute(const std::string &tableName, const std::string &attributeName) {

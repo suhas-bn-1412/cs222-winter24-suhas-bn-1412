@@ -121,8 +121,6 @@ namespace PeterDB {
             numTables++;
         }
 
-//        assert(numTables-1 == *((uint32_t*) ( (char*)tableIdData + 5 )) );
-
         free(tableIdData);
         return numTables;
     }

@@ -3,6 +3,8 @@
 
 #include "rbfm.h"
 
+#include <memory>
+
 typedef char byte;
 
 namespace PeterDB {
@@ -18,7 +20,7 @@ namespace PeterDB {
 
     private:
         Attribute m_attribute;
-        void* m_value;
+        std::shared_ptr<void> m_value;
     };
 }
 

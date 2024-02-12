@@ -7,18 +7,18 @@ namespace PeterDB {
         m_attribute = attribute;
         if (m_attribute.type == TypeVarChar) {
             auto *string = (std::string*) value;
-            m_value = malloc(VarcharSerDes::computeSerializedSize(*string));
-            assert(m_value != nullptr);
-            VarcharSerDes::serialize(*string, m_value);
+            m_value.reset(malloc(VarcharSerDes::computeSerializedSize(*string)), free);
+            assert(m_value.get() != nullptr);
+            VarcharSerDes::serialize(*string, m_value.get());
         } else {
-            m_value = malloc(m_attribute.length);
-            assert(m_value != nullptr);
-            memcpy(m_value, value, m_attribute.length);
+            m_value.reset(malloc(m_attribute.length), free);
+            assert(m_value.get() != nullptr);
+            memcpy(m_value.get(), value, m_attribute.length);
         }
     }
 
     AttributeAndValue::~AttributeAndValue() {
-        free(m_value);
+        //  free(m_value);
     }
 
      Attribute AttributeAndValue::getAttribute() const {
@@ -26,6 +26,6 @@ namespace PeterDB {
     }
 
     void *AttributeAndValue::getValue() const {
-        return m_value;
+        return m_value.get();
     }
 }

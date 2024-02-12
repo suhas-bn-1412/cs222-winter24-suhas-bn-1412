@@ -2,6 +2,7 @@
 #include "src/include/catalogueConstants.h"
 #include "src/include/attributeAndValueSerializer.h"
 #include "src/include/attributesAttributeConstants.h"
+#include "src/include/tablesAttributeConstants.h"
 
 namespace PeterDB {
     RelationManager &RelationManager::instance() {
@@ -31,15 +32,49 @@ namespace PeterDB {
     }
 
     RC RelationManager::deleteCatalog() {
-        return -1;
+        m_rbfm->destroyFile(CatalogueConstants::TABLES_FILE_NAME);
+        m_rbfm->destroyFile(CatalogueConstants::ATTRIBUTES_FILE_NAME);
     }
 
-    RC RelationManager::createTable(const std::string &tableName, const std::vector<Attribute> &attrs) {
-        return -1;
+    RC RelationManager::createTable(const std::string &tablezName, const std::vector<Attribute> &attrs) {
+        // find next TID
+        int tid = computeNextTableId();
+        std::string tableFileName = buildFilename(tablezName);
+
+        // ======= STEP 1
+        // prepare and insert table details into "Tables" table
+        std::vector<AttributeAndValue> tablesTableAttributeAndValues;
+        tablesTableAttributeAndValues.push_back(AttributeAndValue{TablesAttributeConstants::TABLE_ID, &tid});
+        tablesTableAttributeAndValues.push_back(AttributeAndValue{TablesAttributeConstants::TABLE_NAME, (void*) &tablezName});
+        tablesTableAttributeAndValues.push_back(AttributeAndValue{TablesAttributeConstants::TABLE_FILENAME, &tableFileName});
+
+        // prepare (serialize) DATA
+        size_t tablesTableAttributeAndValuesDataSize = AttributeAndValueSerializer::computeSerializedDataLenBytes(
+                &tablesTableAttributeAndValues);
+        void *tablesTableAttributeAndValuesData = malloc(tablesTableAttributeAndValuesDataSize);
+
+        AttributeAndValueSerializer::serialize(&tablesTableAttributeAndValues, tablesTableAttributeAndValuesData);
+
+        // insert into table "Tables"
+        RID rid1;
+        FileHandle tablesFileHandle;
+        m_rbfm->openFile(CatalogueConstants::TABLES_FILE_NAME, tablesFileHandle);
+        m_rbfm->insertRecord(tablesFileHandle, CatalogueConstants::tablesTableAttributes,
+                             tablesTableAttributeAndValuesData, rid1);
+        m_rbfm->closeFile(tablesFileHandle);
+
+
+        //============ STEP 2
+        // prepare and insert table attribute details into "Attributes" table
+        buildAndInsertAttributesIntoAttributesTable(attrs, tid);
+
+        return 0;
     }
+
 
     RC RelationManager::deleteTable(const std::string &tableName) {
-        return -1;
+        m_rbfm->destroyFile(getFileName(tableName));
+        return 0;
     }
 
     AttrType getAttrType(uint32_t attrType) {
@@ -482,6 +517,38 @@ namespace PeterDB {
             attributePosition++;
         }
         return attrsAndValuesForAttrsTable;
+    }
+
+    void RelationManager::buildAndInsertAttributesIntoAttributesTable(const std::vector<Attribute> &attrs, int tid) {
+        // 1. build AttributesAndValues for attributes table
+        std::vector<std::vector<AttributeAndValue>> attributesForAttributesTable =
+                buildAttributesForAttributesTable(tid, attrs);
+
+        // 2. Insert AttributesAndValues into "Attributes" table
+
+        // Open the file for table "Attributes"
+        FileHandle attributesTblFileHandle;
+        m_rbfm->openFile(CatalogueConstants::ATTRIBUTES_FILE_NAME, attributesTblFileHandle);
+        for (auto attributeAndValues: attributesForAttributesTable) {
+            RID rid;
+
+            size_t serializedSize = AttributeAndValueSerializer::computeSerializedDataLenBytes(&attributeAndValues);
+            void *serializedData = malloc(serializedSize);
+            AttributeAndValueSerializer::serialize(&attributeAndValues, serializedData);
+            m_rbfm->insertRecord(attributesTblFileHandle,
+                                 CatalogueConstants::attributesTableAttributes, serializedData, rid);
+            free(serializedData);
+        }
+        m_rbfm->closeFile(attributesTblFileHandle);
+    }
+
+    int RelationManager::computeNextTableId() {
+        //todo:
+        return 0;
+    }
+
+    std::string RelationManager::buildFilename(const std::string &tableName) {
+        return tableName + ".bin";
     }
 
 

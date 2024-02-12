@@ -5,6 +5,7 @@
 #include <vector>
 
 #include "src/include/rbfm.h"
+#include "attributeAndValue.h"
 
 namespace PeterDB {
 #define RM_EOF (-1)  // end of a scan operator
@@ -110,6 +111,12 @@ namespace PeterDB {
 
         std::vector<std::vector<AttributeAndValue>>
         buildAttributesForAttributesTable(int tableId, const std::vector<Attribute> &attributes);
+
+        int computeNextTableId();
+
+        void buildAndInsertAttributesIntoAttributesTable(const std::vector<Attribute> &attrs, int tid);
+
+        std::string buildFilename(const std::string &tableName);
     };
 
 } // namespace PeterDB

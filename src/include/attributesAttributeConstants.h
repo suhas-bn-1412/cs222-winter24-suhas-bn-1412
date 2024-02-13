@@ -6,11 +6,11 @@
 // todo: consolidate with CatalogConstantsBuilder definition
 #define INTEGER_ATTRIBUTE_LENGTH 4
 #define ATTRIBUTE_NAME_MAX_LENGTH 20
-#define ATTRIBUTES_ATTR_NAME_TABLE_ID "table_id"
-#define ATTRIBUTES_ATTR_NAME_ATTR_NAME "attr_name"
-#define ATTRIBUTES_ATTR_NAME_ATTR_TYPE "attr_type"
-#define ATTRIBUTES_ATTR_NAME_ATTR_LENGTH "attr_length"
-#define ATTRIBUTES_ATTR_NAME_POSITION "position"
+#define ATTRIBUTES_ATTR_NAME_TABLE_ID "table-id"
+#define ATTRIBUTES_ATTR_NAME_ATTR_NAME "column-name"
+#define ATTRIBUTES_ATTR_NAME_ATTR_TYPE "column-type"
+#define ATTRIBUTES_ATTR_NAME_ATTR_LENGTH "column-length"
+#define ATTRIBUTES_ATTR_NAME_POSITION "column-position"
 
 namespace PeterDB {
     // Constants class to define the attributes of the "Attributes" table

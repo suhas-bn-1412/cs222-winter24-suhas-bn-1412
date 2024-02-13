@@ -3,9 +3,9 @@
 namespace PeterDB {
 
     const std::string CatalogueConstants::TABLES_TABLE_NAME = "Tables";
-    const std::string CatalogueConstants::ATTRIBUTES_TABLE_NAME = "Attributes";
+    const std::string CatalogueConstants::ATTRIBUTES_TABLE_NAME = "Columns";
     const std::string CatalogueConstants::TABLES_FILE_NAME = "Tables";
-    const std::string CatalogueConstants::ATTRIBUTES_FILE_NAME = "Attributes";
+    const std::string CatalogueConstants::ATTRIBUTES_FILE_NAME = "Columns";
 
     const unsigned int CatalogueConstants::TABLES_TABLE_ID = 0;
     const unsigned int CatalogueConstants::ATTRIBUTES_TABLE_ID = 1;

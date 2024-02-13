@@ -42,12 +42,13 @@ namespace PeterDB {
     RC RelationManager::deleteCatalog() {
         if (!m_catalogCreated) return -1;
 
-        m_catalogCreated = false;
-        m_rbfm->destroyFile(CatalogueConstants::TABLES_FILE_NAME);
-        m_rbfm->destroyFile(CatalogueConstants::ATTRIBUTES_FILE_NAME);
+        for (auto &table : m_tablesCreated) {
+            m_rbfm->destroyFile(getFileName(table.first));
+        }
 
-        m_tablesCreated.erase(m_tablesCreated.find(CatalogueConstants::TABLES_FILE_NAME));
-        m_tablesCreated.erase(m_tablesCreated.find(CatalogueConstants::ATTRIBUTES_FILE_NAME));
+        m_tablesCreated.clear();
+        
+        m_catalogCreated = false;
 
         return 0;
     }

@@ -426,6 +426,9 @@ namespace PeterDB {
 
     RC RBFM_ScanIterator::close() {
         m_initDone = false;
+        m_scanStarted = false;
+        m_rbfm = nullptr;
+        m_fileHandle = nullptr;
         free(m_value);
         m_value = nullptr;
         return 0;

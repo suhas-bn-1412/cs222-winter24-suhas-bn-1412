@@ -47,7 +47,7 @@ namespace PeterDB {
         }
 
         m_tablesCreated.clear();
-        
+
         m_catalogCreated = false;
 
         return 0;

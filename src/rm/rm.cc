@@ -426,6 +426,10 @@ namespace PeterDB {
                              const void *value,
                              const std::vector<std::string> &attributeNames,
                              RM_ScanIterator &rm_ScanIterator) {
+        if (m_tablesCreated.end() == m_tablesCreated.find(tableName)) {
+            ERROR("Scan: Table %s not found\n", tableName);
+            return -1;
+        }
         if (0 != rm_ScanIterator.init(this, m_rbfm, tableName)) {
             return -1;
         }
@@ -471,8 +475,12 @@ namespace PeterDB {
     }
 
     RC RM_ScanIterator::close() {
-        m_rbfmsi.close();
-        return m_rbfm->closeFile(m_fh);
+        if (m_initDone) {
+            m_initDone = false;
+            m_rbfmsi.close();
+            return m_rbfm->closeFile(m_fh);
+        }
+        return 0;
     }
 
     // Extra credit work

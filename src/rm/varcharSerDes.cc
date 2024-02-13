@@ -12,9 +12,9 @@ namespace PeterDB {
         byte *destPtr = (byte *) data;
 
         uint32_t stringLen = string.length();
-        memcpy(destPtr, &stringLen, VARCHAR_SIZE_SPECIFIER_SIZE);
+        memmove(destPtr, &stringLen, VARCHAR_SIZE_SPECIFIER_SIZE);
         destPtr += VARCHAR_SIZE_SPECIFIER_SIZE;
 
-        memcpy(destPtr, &string, stringLen);
+        memmove(destPtr, string.c_str(), stringLen);
     }
 }

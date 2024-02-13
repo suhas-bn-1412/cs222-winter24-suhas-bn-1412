@@ -10,7 +10,7 @@ namespace PeterDB {
     void CatalogueConstantsBuilder::buildTablesTableAttributeAndValues(std::vector<AttributeAndValue> &attributesAndValues) {
         int tableId = 0;
         std::string tableName = "Tables";
-        std::string tableFileName = "Tables.bin";
+        std::string tableFileName = "Tables";
         attributesAndValues.push_back(AttributeAndValue(TablesAttributeConstants::TABLE_ID, &tableId));
         attributesAndValues.push_back(AttributeAndValue(TablesAttributeConstants::TABLE_NAME, &tableName));
         attributesAndValues.push_back(AttributeAndValue(TablesAttributeConstants::TABLE_FILENAME, &tableFileName));
@@ -20,7 +20,7 @@ namespace PeterDB {
     void CatalogueConstantsBuilder::buildAttributesTableAttributeAndValues(std::vector<AttributeAndValue> &attributesAndValues) {
         int tableId = 1;
         std::string tableName = "Attributes";
-        std::string tableFileName = "Attributes.bin";
+        std::string tableFileName = "Attributes";
         attributesAndValues.push_back(AttributeAndValue(TablesAttributeConstants::TABLE_ID, &tableId));
         attributesAndValues.push_back(AttributeAndValue(TablesAttributeConstants::TABLE_NAME, &tableName));
         attributesAndValues.push_back(AttributeAndValue(TablesAttributeConstants::TABLE_FILENAME, &tableFileName));

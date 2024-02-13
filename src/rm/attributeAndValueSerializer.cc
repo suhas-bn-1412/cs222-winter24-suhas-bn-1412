@@ -60,12 +60,12 @@ namespace PeterDB {
             AttrType attrType = attributeAndValue.getAttribute().type;
             if (attrType == TypeVarChar) {
                 // prefix the size
-                memmove(dest, &attrValueSize, sizeof(uint32_t));
-                dest += sizeof(uint32_t);
-                memcpy(dest, attributeAndValue.getValue(), attrValueSize);
-                dest += attrValueSize;
+                // memmove(dest, &attrValueSize, sizeof(uint32_t));
+                // dest += sizeof(uint32_t);
+                memmove(dest, attributeAndValue.getValue(), attrValueSize + sizeof(uint32_t));
+                dest += attrValueSize + sizeof(uint32_t);
             } else {
-                memcpy(dest, attributeAndValue.getValue(), attrValueSize);
+                memmove(dest, attributeAndValue.getValue(), attrValueSize);
                 dest += attrValueSize;
             }
         }
@@ -83,9 +83,7 @@ namespace PeterDB {
                 attributeDataSize += 4;
                 break;
             case TypeVarChar:
-                uint32_t varcharValSize;
-                memmove(&varcharValSize, attributeAndValue.getValue(), sizeof(varcharValSize));
-                attributeDataSize += varcharValSize;
+                attributeDataSize += *( (uint32_t*) attributeAndValue.getValue() );
                 break;
         }
         return attributeDataSize;

@@ -162,20 +162,18 @@ namespace PeterDB {
 
     Attribute getAttributeFromData(void* data) {
         // we have data in the following format
-        // first 4 bytes = num of fields present in the returned data = attrsToReadFromAttributesTable.size()
-        // next 1 bytes = representing the nullFlags of all the attibutes
+        // first 1 byte = representing the nullFlags of all the attibutes
         // next 4 bytes = length of the varchar holding the attribute name = n
         // next n bytes = attribute name
         // next 4 bytes = attribute type
         // next 4 bytes = attribute length
-        assert(3 == *( (uint32_t*) data ) );
 
-        uint32_t strlen = *( (uint32_t*) ( (char*)data + 5) );
+        uint32_t strlen = *( (uint32_t*) ( (char*)data + 1) );
         std::string attr_name;
-        attr_name.assign(( (char*)data + 4 + 1 + 4), strlen);
+        attr_name.assign(( (char*)data + 1 + 4), strlen);
 
-        uint32_t attr_type = *( (uint32_t*) ((char*)data + 4 + 1 + 4 + strlen) );
-        uint32_t attr_length = *( (uint32_t*) ((char*)data + 4 + 1 + 4 + strlen + 4) );
+        uint32_t attr_type = *( (uint32_t*) ((char*)data + 1 + 4 + strlen) );
+        uint32_t attr_length = *( (uint32_t*) ((char*)data + 1 + 4 + strlen + 4) );
 
         Attribute attr;
         attr.name = attr_name;
@@ -223,7 +221,7 @@ namespace PeterDB {
  
         uint32_t tablenamesz = tableName.size();
         memmove(conditionValue, &tablenamesz, 4);
-        memmove( (void*)( (char*) conditionValue + 4), &tableName, tableName.size());
+        memmove( (void*)( (char*) conditionValue + 4), tableName.c_str(), tableName.size());
  
         RBFM_ScanIterator rbfmsi;
         auto scan = m_rbfm->scan(tableFileHandle,
@@ -244,7 +242,7 @@ namespace PeterDB {
 
         // using scan iterator for the table, read the entry for tabeName and read only the id
         // construct the data into which the id is written
-        void* tableIdData = malloc(4 + 1 + 4); // num of attrs in the record, nullflag byte, bytes to store table-id data
+        void* tableIdData = malloc(1 + 4); // nullflag byte, bytes to store table-id data
         assert(nullptr != tableIdData);
         RID tableIdRid;
 
@@ -260,10 +258,8 @@ namespace PeterDB {
         m_rbfm->closeFile(tableFileHandle);
 
         // now tableIdData is as follows
-        // first 4 bytes =  1, representing there is only one attribute projected out of the scan
-        // next 1 byte = <nullflags>, representing theres only one byte used for nullflags
+        // first 1 byte = <nullflags>, representing theres only one byte used for nullflags
         // next 4 bytes = <table-id> representing the table id value for table with name=tableName
-        assert(1 == * ( (uint32_t*) tableIdData ) );
 
         // read the table Attributes and read for all the entries with table_id = id
         
@@ -272,11 +268,11 @@ namespace PeterDB {
                                                                    ATTRIBUTES_ATTR_NAME_ATTR_TYPE,
                                                                    ATTRIBUTES_ATTR_NAME_ATTR_LENGTH};
 
-        // num fields + nullflags + length of varchar attr + varchar attr + int attr + int attr
-        unsigned maxSpaceReq = 4 + 1 + 4 + ATTRIBUTE_NAME_MAX_LENGTH + 4 + 4;
+        // nullflags + length of varchar attr + varchar attr + int attr + int attr
+        unsigned maxSpaceReq = 1 + 4 + ATTRIBUTE_NAME_MAX_LENGTH + 4 + 4;
 
         // prepare the arguments for scan function
-        conditionValue = (void*)( (char*) tableIdData + 5);
+        conditionValue = (void*)( (char*) tableIdData + 1);
         conditionAttr = ATTRIBUTES_ATTR_NAME_TABLE_ID;
 
         scan = m_rbfm->scan(attributesFileHandle,

@@ -24,6 +24,8 @@ namespace PeterDB {
     }
 
     RC RelationManager::createCatalog() {
+        if (m_catalogCreated) return 0;
+
         m_catalogCreated = true;
         INFO("Creating Catalogue\n");
 

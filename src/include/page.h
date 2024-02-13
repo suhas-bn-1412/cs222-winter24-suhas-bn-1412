@@ -48,9 +48,8 @@ namespace PeterDB {
 
         Slot getSlot(unsigned short slotNum);
 
-        int getCurrentPage();
-
     private:
+        std::string m_fileName = "";
         int m_pageNum = -1;
         byte *m_data = new byte[PAGE_SIZE];
         unsigned short* freeByteCount = (unsigned short *) (m_data + PAGE_SIZE - PAGE_METADATA_SIZE) + 1;

@@ -16,16 +16,32 @@ namespace PeterDB {
         setSlotCount(0);
     }
 
-    int Page::getCurrentPage() {
-        return m_pageNum;
-    }
-
     RC Page::readPage(FileHandle &fileHandle, PageNum pageNum) {
+        // if we have same file and same page, then no need to do disk i/o
+        if (fileHandle.getFileName() == m_fileName &&
+            pageNum == m_pageNum) {
+            return 0;
+        }
+
+        // if we have the same file, but different page, then we need
+        // to write the current page to disk before reading the new page
+        if (fileHandle.getFileName() == m_fileName &&
+                -1 != m_pageNum) {
+            auto wp = writePage(fileHandle, m_pageNum);
+            if (0 != wp) {
+                ERROR("Error while writing the page %d into file %s", m_pageNum, fileHandle.getFileName().c_str());
+                return -1;
+            }
+        }
+
+        eraseAndReset();
+
         auto rp = fileHandle.readPage(pageNum, m_data);
         if (0 != rp) {
             return rp;
         }
 
+        m_fileName = fileHandle.getFileName();
         m_pageNum = pageNum;
         return 0;
     }
@@ -35,13 +51,13 @@ namespace PeterDB {
         // those previous operations should have made sure that the current page
         // we have is the same as the pagenum passed to the writePage
         assert(pageNum == m_pageNum);
+        assert(m_fileName == fileHandle.getFileName());
 
         auto wp = fileHandle.writePage(pageNum, m_data);
         if (0 != wp) {
             return wp;
         }
 
-        m_pageNum = pageNum;
         return 0;
     }
 

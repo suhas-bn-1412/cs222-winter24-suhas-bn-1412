@@ -27,6 +27,15 @@ namespace PeterDB {
     }
 
     RC RecordBasedFileManager::destroyFile(const std::string &fileName) {
+        m_fileOpenRefCount.erase(fileName);
+ 
+        // Check if PageSelector for this filename exists
+        auto it = m_pageSelectors.find(fileName);
+        if (it != m_pageSelectors.end()) {
+            delete it->second;
+            m_pageSelectors.erase(it);
+        }
+
         return m_pagedFileManager->destroyFile(fileName);
     }
 
@@ -295,8 +304,8 @@ namespace PeterDB {
         auto rp = m_page.readPage(fileHandle, pageNumber);
         assert(0 == rp);
         m_page.eraseAndReset();
-        auto rc = m_page.writePage(fileHandle, pageNumber);
-        assert(rc == 0);
+        // auto rc = m_page.writePage(fileHandle, pageNumber);
+        // assert(rc == 0);
     }
 
     bool RecordBasedFileManager::isValidDataPage(FileHandle &fileHandle, PageNum pageNum) {
@@ -322,14 +331,12 @@ namespace PeterDB {
         }
 
         // check if given slot is present in this page
-        if ((m_page.getCurrentPage() == -1) || (m_page.getCurrentPage() != rid.pageNum)) {
-            auto rp = m_page.readPage(fileHandle, rid.pageNum);
-            assert(0 == rp);
+        auto rp = m_page.readPage(fileHandle, rid.pageNum);
+        assert(0 == rp);
 
-            if (0 != rp) {
-                ERROR("Error while reading the page %d from file %s \n", rid.pageNum, fileHandle.getFileName());
-                return false;
-            }
+        if (0 != rp) {
+            ERROR("Error while reading the page %d from file %s \n", rid.pageNum, fileHandle.getFileName());
+            return false;
         }
 
         if (rid.slotNum >= m_page.getSlotCount()) {
@@ -347,14 +354,12 @@ namespace PeterDB {
         }
 
         // check if given slot is present in this page
-        if ((m_page.getCurrentPage() == -1) || (m_page.getCurrentPage() != rid.pageNum)) {
-            auto rp = m_page.readPage(fileHandle, rid.pageNum);
-            assert(0 == rp);
+        auto rp = m_page.readPage(fileHandle, rid.pageNum);
+        assert(0 == rp);
 
-            if (0 != rp) {
-                ERROR("Error while reading the page %d from file %s \n", rid.pageNum, fileHandle.getFileName());
-                return true;
-            }
+        if (0 != rp) {
+            ERROR("Error while reading the page %d from file %s \n", rid.pageNum, fileHandle.getFileName());
+            return true;
         }
 
         if (rid.slotNum >= m_page.getSlotCount()) {

@@ -648,7 +648,7 @@ namespace PeterDB {
     void RelationManager::buildAttributesForAttributesTable(int tableId,
                                                             const std::vector<Attribute> &attributes,
                                                             std::vector<std::vector<AttributeAndValue>> &attrsAndValuesForAttrsTable) {
-        int attributePosition = 0;
+        int attributePosition = 1;
         for (const Attribute &attribute: attributes) {
             std::vector<AttributeAndValue> attrsAndValues;
 

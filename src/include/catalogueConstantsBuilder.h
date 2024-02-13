@@ -6,7 +6,7 @@
 #include <vector>
 
 #define INTEGER_ATTRIBUTE_LENGTH 4
-#define ATTRIBUTE_NAME_MAX_LENGTH 20
+#define ATTRIBUTE_NAME_MAX_LENGTH 50
 #define TABLE_ATTR_NAME_ID "table-id"
 #define TABLE_ATTR_NAME_NAME "table-name"
 #define TABLE_ATTR_NAME_FNAME "file-name"

@@ -251,41 +251,18 @@ namespace PeterDB {
         return 0;
     }
 
+    // returns nullFlag + data
     RC RecordBasedFileManager::readAttribute(FileHandle &fileHandle, const std::vector<Attribute> &recordDescriptor,
                                              const RID &rid, const std::string &attributeName, void *data) {
         auto attrNames = std::vector<std::string>();
         attrNames.push_back(attributeName);
 
-        Attribute attrInfo;
-        for (auto &record : recordDescriptor) {
-            if (attributeName == record.name) {
-                attrInfo = record;
-                break;
-            }
-        }
-        assert(attrInfo.name != "");
-
-        // to read varchar we need 4 extra byte in the beginning to know the length of it
-        void *dataToBeRead = malloc(1 /*for null flag*/ + ((attrInfo.type == TypeVarChar) ? (VARCHAR_ATTR_LEN_SZ + attrInfo.length) : attrInfo.length));
-        assert(nullptr != dataToBeRead);
-
-        auto rr = readRecordWithAttrFilter(fileHandle, recordDescriptor, attrNames, rid, dataToBeRead);
+        auto rr = readRecordWithAttrFilter(fileHandle, recordDescriptor, attrNames, rid, data);
         if (0 != rr) {
             ERROR("Error while reading attribute %s in record P.%d S.%d \n", attributeName, rid.pageNum, rid.slotNum);
-            free(dataToBeRead);
             return rr;
         }
 
-        void *tmp = dataToBeRead;
-        dataToBeRead = (void*)( (char*)dataToBeRead + 1 /*for null flag*/);
-        if (TypeVarChar == attrInfo.type) {
-            auto len = VARCHAR_ATTR_LEN_SZ + *( (uint32_t*) dataToBeRead );
-            memmove(data, dataToBeRead, len);
-        } else {
-            memmove(data, dataToBeRead, INT_SZ);
-        }
-
-        free(tmp);
         return 0;
     }
 
@@ -557,17 +534,25 @@ namespace PeterDB {
 
         void *data = nullptr;
 
-        AttrType condAttrType = TypeInt;
+        Attribute attr;
+        bool attrFound = false;
 
         for (auto &recordInfo : m_recodrdDescriptor) {
             if (recordInfo.name == m_conditionAttribute) {
-                data = malloc( VARCHAR_ATTR_LEN_SZ + recordInfo.length );
-                memset(data, 0, recordInfo.length);
-                condAttrType = recordInfo.type;
-
+                attr = recordInfo;
+                attrFound = true;
                 break;
             }
         }
+        assert(true == attrFound);
+
+        int attrlen = attr.length;
+        if (TypeVarChar == attr.type) {
+            attrlen += VARCHAR_ATTR_LEN_SZ;
+        }
+
+        data = malloc(1 /* null flag */ + attrlen);
+        memset(data, 0, attrlen);
 
         assert(data != nullptr);
 
@@ -578,7 +563,13 @@ namespace PeterDB {
             return false;
         }
 
-        bool comparisonResult = getComparisonResult(condAttrType, m_compOp, data, m_value);
+        bool comparisonResult = false;
+
+        bool isNull = (0 != *(static_cast<unsigned char*>(data)));
+        if (!isNull) {
+            comparisonResult = getComparisonResult(attr.type, m_compOp, (void*)((char*)data + 1), m_value);
+        }
+
         free(data);
         return comparisonResult;
     }

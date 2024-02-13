@@ -1,7 +1,6 @@
 #include "src/include/rm.h"
 #include "src/include/catalogueConstants.h"
 #include "src/include/attributeAndValueSerializer.h"
-#include "src/include/attributesAttributeConstants.h"
 
 namespace PeterDB {
     RelationManager &RelationManager::instance() {

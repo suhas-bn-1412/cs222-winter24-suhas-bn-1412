@@ -1,4 +1,5 @@
 #include "src/include/catalogueConstants.h"
+#include "src/include/attributesAttributeConstants.h"
 
 namespace PeterDB {
 

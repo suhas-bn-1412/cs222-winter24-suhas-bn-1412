@@ -10,11 +10,11 @@
 #define TABLE_ATTR_NAME_ID "table-id"
 #define TABLE_ATTR_NAME_NAME "table-name"
 #define TABLE_ATTR_NAME_FNAME "file-name"
-#define ATTRIBUTES_ATTR_NAME_TABLE_ID "table_id"
-#define ATTRIBUTES_ATTR_NAME_ATTR_NAME "attr_name"
-#define ATTRIBUTES_ATTR_NAME_ATTR_TYPE "attr_type"
-#define ATTRIBUTES_ATTR_NAME_ATTR_LENGTH "attr_length"
-#define ATTRIBUTES_ATTR_NAME_POSITION "position"
+#define ATTRIBUTES_ATTR_NAME_TABLE_ID "table-id"
+#define ATTRIBUTES_ATTR_NAME_ATTR_NAME "column-name"
+#define ATTRIBUTES_ATTR_NAME_ATTR_TYPE "column-type"
+#define ATTRIBUTES_ATTR_NAME_ATTR_LENGTH "column-length"
+#define ATTRIBUTES_ATTR_NAME_POSITION "column-position"
 
 namespace PeterDB {
 
@@ -30,6 +30,15 @@ namespace PeterDB {
         // Attributes and values to insert into "Tables" table
         static void buildTablesTableAttributeAndValues(std::vector<AttributeAndValue>&);
         static void buildAttributesTableAttributeAndValues(std::vector<AttributeAndValue>&);
+    };
+
+    class AttributesAttributeConstants {
+    public:
+        static const Attribute TABLE_ID;
+        static const Attribute ATTRIBUTE_NAME;
+        static const Attribute ATTRIBUTE_TYPE;
+        static const Attribute ATTRIBUTE_LENGTH;
+        static const Attribute ATTRIBUTE_POSITION;
     };
 }
 

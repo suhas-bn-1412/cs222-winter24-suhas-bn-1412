@@ -26,21 +26,37 @@ namespace PeterDB {
     RC RelationManager::createCatalog() {
         m_catalogCreated = true;
         INFO("Creating Catalogue\n");
+
         initTablesTable();
         initAttributesTable();
+
+        m_tablesCreated[CatalogueConstants::TABLES_FILE_NAME] = true;
+        m_tablesCreated[CatalogueConstants::ATTRIBUTES_FILE_NAME] = true;
+
         INFO("Created Catalogue\n");
         return 0;
     }
 
     RC RelationManager::deleteCatalog() {
+        if (!m_catalogCreated) return -1;
+
         m_catalogCreated = false;
         m_rbfm->destroyFile(CatalogueConstants::TABLES_FILE_NAME);
         m_rbfm->destroyFile(CatalogueConstants::ATTRIBUTES_FILE_NAME);
+
+        m_tablesCreated.erase(m_tablesCreated.find(CatalogueConstants::TABLES_FILE_NAME));
+        m_tablesCreated.erase(m_tablesCreated.find(CatalogueConstants::ATTRIBUTES_FILE_NAME));
+
         return 0;
     }
 
     RC RelationManager::createTable(const std::string &tablezName, const std::vector<Attribute> &attrs) {
         if (!m_catalogCreated) return -1;
+
+        if (tablezName == CatalogueConstants::TABLES_FILE_NAME ||
+            tablezName == CatalogueConstants::ATTRIBUTES_FILE_NAME) {
+            return -1;
+        }
 
         std::string tableFileName = getFileName(tablezName);
         if (0 != m_rbfm->createFile(tableFileName)) {
@@ -89,6 +105,11 @@ namespace PeterDB {
 
     RC RelationManager::deleteTable(const std::string &tableName) {
         if (!m_catalogCreated) return -1;
+
+        if (tableName == CatalogueConstants::TABLES_FILE_NAME ||
+            tableName == CatalogueConstants::ATTRIBUTES_FILE_NAME) {
+            return -1;
+        }
 
         auto it = m_tablesCreated.find(tableName);
         if (m_tablesCreated.end() == it) {
@@ -326,6 +347,11 @@ namespace PeterDB {
     }
 
     RC RelationManager::insertTuple(const std::string &tableName, const void *data, RID &rid) {
+        if (tableName == CatalogueConstants::TABLES_FILE_NAME ||
+            tableName == CatalogueConstants::ATTRIBUTES_FILE_NAME) {
+            return -1;
+        }
+
         std::vector<Attribute> attrs;
         FileHandle fh;
 
@@ -344,6 +370,11 @@ namespace PeterDB {
     }
 
     RC RelationManager::deleteTuple(const std::string &tableName, const RID &rid) {
+        if (tableName == CatalogueConstants::TABLES_FILE_NAME ||
+            tableName == CatalogueConstants::ATTRIBUTES_FILE_NAME) {
+            return -1;
+        }
+
         std::vector<Attribute> attrs;
         FileHandle fh;
 
@@ -362,6 +393,11 @@ namespace PeterDB {
     }
 
     RC RelationManager::updateTuple(const std::string &tableName, const void *data, const RID &rid) {
+        if (tableName == CatalogueConstants::TABLES_FILE_NAME ||
+            tableName == CatalogueConstants::ATTRIBUTES_FILE_NAME) {
+            return -1;
+        }
+
         std::vector<Attribute> attrs;
         FileHandle fh;
 

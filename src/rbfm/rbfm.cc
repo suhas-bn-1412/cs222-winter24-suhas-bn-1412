@@ -255,7 +255,7 @@ namespace PeterDB {
             m_page.readPage(fileHandle, existingRid.pageNum);
             m_page.updateRecord(&tombstoneRecordAndMetadata, existingRid.slotNum);
             m_page.writePage(fileHandle, existingRid.pageNum);
-            m_pageSelectors[fileHandle.getFileName()]->decrementAvailableSpace(existingRid.pageNum, sizeof(RID) - oldLengthOfRecord);
+            m_pageSelectors[fileHandle.getFileName()]->decrementAvailableSpace(existingRid.pageNum, tombstoneRecordAndMetadata.getRecordAndMetadataLength() - oldLengthOfRecord);
         }
 
         free(serializedRecord);

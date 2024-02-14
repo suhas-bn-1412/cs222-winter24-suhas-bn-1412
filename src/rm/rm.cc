@@ -479,7 +479,17 @@ namespace PeterDB {
 
     RM_ScanIterator::~RM_ScanIterator() = default;
 
+    void RM_ScanIterator::reset() {
+        m_initDone = false;
+        m_rm = nullptr;
+        m_rbfm = nullptr;
+        m_attrs.clear();
+    }
+
     RC RM_ScanIterator::init(RelationManager *rm, RecordBasedFileManager *rbfm, const std::string &tableName) {
+        reset(); // in case of reusing the same iterator object
+                 // we need to reset the info inside the object, so that
+                 // it wont be corrupt
         m_initDone = true;
         m_rm = rm;
         m_rbfm = rbfm;

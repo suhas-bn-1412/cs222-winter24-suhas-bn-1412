@@ -23,6 +23,8 @@ namespace PeterDB {
         // "data" follows the same format as RelationManager::insertTuple()
         RC getNextTuple(RID &rid, void *data);
 
+        void reset();
+
         RC close();
 
         RC init(RelationManager* rm, RecordBasedFileManager* rbfm, const std::string& tableName);

@@ -487,8 +487,22 @@ namespace PeterDB {
         return false;
     }
 
-    int varcharCompare(const CompOp &op, const uint32_t &len, const char *str1, const char *str2) {
-        int result = strncmp(str1, str2, len);
+    int varcharCompare(const CompOp &op,
+                       const uint32_t &len1, const uint32_t& len2,
+                       const char *str1, const char *str2) {
+        char* s1 = new char[len1 + 1];
+        char* s2 = new char[len2 + 1];
+
+        std::memcpy(s1, str1, len1);
+        std::memcpy(s2, str2, len2);
+
+        s1[len1] = '\0'; // Null-terminate the strings
+        s2[len2] = '\0';
+
+        int result = strcmp(s1, s2);
+
+        delete[] s1;
+        delete[] s2;
 
         switch (op) {
             case EQ_OP:
@@ -521,10 +535,7 @@ namespace PeterDB {
                 // has the length of the varchar string and next <n> bytes has the data
                 uint32_t len1 = * ( (uint32_t*) data);
                 uint32_t len2 = * ( (uint32_t*) expected);
-                if (len1 != len2) {
-                    return false;
-                }
-                return varcharCompare(compOp, len1, ( (char*) data + VARCHAR_ATTR_LEN_SZ ), ( (char*)expected + VARCHAR_ATTR_LEN_SZ ) );
+                return varcharCompare(compOp, len1, len2, ( (char*) data + VARCHAR_ATTR_LEN_SZ ), ( (char*)expected + VARCHAR_ATTR_LEN_SZ ) );
         }
         return false;
     }

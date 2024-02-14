@@ -394,8 +394,10 @@ namespace PeterDB {
                 case TypeInt:
                 case TypeReal:
                     bytesToCopy = INT_SZ;
+                    break;
                 case TypeVarChar:
                     bytesToCopy = VARCHAR_ATTR_LEN_SZ + *( (uint32_t*) value );
+                    break;
                 default:
                     break;
             }

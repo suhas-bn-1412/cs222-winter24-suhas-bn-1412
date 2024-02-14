@@ -9,7 +9,7 @@ namespace PeterDB {
         unsigned short m_pageNum;
         unsigned short m_slotNum;
         bool m_isTombStone;
-        void *m_recordData;
+        void *m_recordData = nullptr;
 
         unsigned short m_recordAndMetadataLength;
         unsigned short m_recordDataLength;

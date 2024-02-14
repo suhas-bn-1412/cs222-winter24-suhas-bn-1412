@@ -15,24 +15,24 @@
   * Tables table
 ```
   =====================================================================
-  |    id : int    |  name : varchar(20)  |  file_name : varchar(20)  |
+  |    table-id : int    |  table-name : varchar(20)  |  file-name : varchar(20)  |
   =====================================================================
 ```
-     - id - primary key in the Tables table. Unique identifier for any Table created in the Database
-     - name - name of the table, stored as varchar with max char limit of 20
-     - file_name - name of the file in which data is stored for this particular table. stored as varchar with mac char limit of 20
+     - table-id - primary key in the Tables table. Unique identifier for any Table created in the Database
+     - table-name - name of the table, stored as varchar with max char limit of 20
+     - file-name - name of the file in which data is stored for this particular table. stored as varchar with mac char limit of 20
 
-  * Attributes table (we have used table name as Attributes instead of Columns)
+  * Columns table 
 ```
   ============================================================================================================
-  |  table_id : int  |  attr_name : varchar(20)  |  attr_type : int  | attr_length : int  |  position : int  |
+  |  table-id : int  |  col-name : varchar(50)  |  col-type : int  | col-length : int  |  col-position : int  |
   ============================================================================================================
 ```
-     - table_id - represents the ID of the table for which the attribute belongs to
-     - attr_name - name of the attribute (table_id, attr_name) together forms unique pairs in this table
-     - attr_type - enum storing type of the attribute (integer, float or varchar)
-     - attr_length - length of the attribute. In case of integer and float, length is 4, in case of varchar length is max char limit of varchar
-     - position - position of the attribute in the schema of the table
+     - table-id - represents the ID of the table for which the attribute belongs to
+     - col-name - name of the attribute (table_id, attr_name) together forms unique pairs in this table
+     - col-type - enum storing type of the attribute (integer, float or varchar)
+     - col-length - length of the attribute. In case of integer and float, length is 4, in case of varchar length is max char limit of varchar
+     - col-position - position of the attribute in the schema of the table
 
 ### 3. Internal Record Format (in case you have changed from P1, please re-enter here)
 - Show your record format design.
@@ -95,7 +95,7 @@ Not changed from project 1
            if this pages has n entries - meaning it represents page numbers of n pages which stores below information
 
   n hidden pages - stores info about pages storing data and available space in them
-                   each page has numtiple entries of (page_num - avail_space) data
+                   each page has multiple entries of (page_num - avail_space) data
 
 
 - Show your hidden page(s) format design if applicable
@@ -105,8 +105,8 @@ Not changed from project 1
 ### 6. Describe the following operation logic.
 - Delete a record
   1. Given the RID, check the slot directory of that page.
-  2. Mark the slot as unused, and shift the offset to the left for all slots which are after the current slot
-  3. Shift the data to the left for all the records right to the current slot
+  2. Mark the slot as unused (by setting slot-length to 0, in the page's slot directory, and shift the offset to the left for all slots which are after the current slot
+  3. Shift the data to the left for all the subsequent records after the current slot
 
 - Update a record
 

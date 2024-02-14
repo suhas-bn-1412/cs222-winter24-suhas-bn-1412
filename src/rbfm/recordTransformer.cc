@@ -3,6 +3,7 @@
 #include <assert.h>
 #include <string.h>
 #include <sstream>
+#include <unordered_map>
 
 #define ATTR_COUNT_FIELD_SZ sizeof(uint16_t)
 #define ATTR_OFFSET_SZ sizeof(uint16_t)
@@ -178,15 +179,11 @@ void PeterDB::RecordTransformer::deserialize(const std::vector<Attribute> &recor
     const void *nullFlagsPtr = nullptr;
     nullFlagsPtr = (const void*) ((const char*)serializedRecord + ATTR_COUNT_FIELD_SZ);
 
-    uint16_t projectedAttributeCount = attributeNames.size();
-    uint16_t projectedAttrsNullFlagSize = (projectedAttributeCount + 7) / 8;
-    std::vector<bool> projectAttrNullFlagsAsBools;
-
-    // Read the nullflags
-    void *dataPtr = recordData;
-
-    // go past the space required to add nullflags for projected attributes
-    dataPtr = (void*)((char*)dataPtr + nullFlagSize);
+    std::unordered_map<std::string, ProjectedAttrInfo> projectedAttrInfo;
+    for (auto &attrName : attributeNames) {
+        ProjectedAttrInfo newInfo;
+        projectedAttrInfo[attrName] = newInfo;
+    }
 
     auto currAttr = 0;
     uint32_t attrStart = ATTR_COUNT_FIELD_SZ + nullFlagSize + offsetSzInRecord;
@@ -202,13 +199,36 @@ void PeterDB::RecordTransformer::deserialize(const std::vector<Attribute> &recor
 
         // only if the attribute name is present in the list of projected
         // attributes, only then write that attribute into the data
-        bool projectAttr = (attributeNames.end() != std::find(attributeNames.begin(), attributeNames.end(), attr.name));
+        bool projectAttr = (projectedAttrInfo.end() != projectedAttrInfo.find(attr.name));
 
-        if (projectAttr) projectAttrNullFlagsAsBools.emplace_back(isNull);
+        if (projectAttr) {
+            projectedAttrInfo[attr.name].attrInfo = attr;
+            projectedAttrInfo[attr.name].attrStart = attrStart;
+            projectedAttrInfo[attr.name].attrEnd = attrEnd;
+            projectedAttrInfo[attr.name].isNull = isNull;
+        }
+        attrStart = attrEnd;
+    }
 
-        if (projectAttr && !isNull) {
+    uint16_t projectedAttributeCount = attributeNames.size();
+    uint16_t projectedAttrsNullFlagSize = (projectedAttributeCount + 7) / 8;
+    std::vector<bool> projectAttrNullFlagsAsBools;
 
-            switch (attr.type) {
+    // go past the space required to add nullflags for projected attributes
+    void *dataPtr = recordData;
+    dataPtr = (void*)((char*)dataPtr + projectedAttrsNullFlagSize);
+
+    // now go through attributeNames in the given order and copy the data
+    for (auto &attrname: attributeNames) {
+        auto attrDataInfo = projectedAttrInfo[attrname];
+
+        projectAttrNullFlagsAsBools.push_back(attrDataInfo.isNull);
+
+        attrStart = attrDataInfo.attrStart;
+        attrEnd = attrDataInfo.attrEnd;
+
+        if (!attrDataInfo.isNull) {
+            switch (attrDataInfo.attrInfo.type) {
                 case TypeInt:
                     assert(INT_SZ == (attrEnd-attrStart));
 
@@ -240,7 +260,6 @@ void PeterDB::RecordTransformer::deserialize(const std::vector<Attribute> &recor
                     continue;
             }
         }
-        attrStart = attrEnd;
     }
 
     char *projectedAttrsNullFlags = (char*)malloc(projectedAttrsNullFlagSize);

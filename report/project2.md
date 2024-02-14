@@ -147,14 +147,23 @@ else
 
 - Scan on normal records
 
-
+1. If scan hasn't started yet, start from first page and first slot
+2. If scan is already started, then increment the RID that was previously read
+3. If we have valid RID (not a tombstone), then read the record
+4. If record satisfies the condition, then return (store this RID as a state in scan iterator)
+5. Else scan for next record (recursive)
 
 - Scan on deleted records
 
+1. Same as normal record scan
+2. In step 3 of above explanation, we check if the slot was deleted, then we skip past that record while scanning
 
 
 - Scan on updated records
 
+1. Same as normal record scan
+2. In step 3 of above explanation, we check if the slot was updated
+3. If upodated, then the record is marked as tombstone, so we skip past that record while scanning
 
 
 ### 7. Implementation Detail

@@ -213,13 +213,13 @@ namespace PeterDB {
 
         // 3. If the new record still fits into the original page, just update the record in-place.
         unsigned short oldLengthOfRecord = m_page.getRecordLengthBytes(existingRid.slotNum);
-        unsigned short newLengthOfRecord = serializedRecordLength;
+        unsigned short newLengthOfRecord = serializedRecordLength + RecordAndMetadata::RECORD_METADATA_LENGTH_BYTES;
         INFO("Updating record in page=%hu, slot=%hu. Old size=%hu, new size=%hu\n",
              existingRid.pageNum, existingRid.slotNum, oldLengthOfRecord,
              newLengthOfRecord);
 
         int growthInRecordLength = newLengthOfRecord - oldLengthOfRecord;
-        if (growthInRecordLength <= 0 || m_page.canInsertRecord(growthInRecordLength - 4)) {
+        if (growthInRecordLength <= 0 || m_page.canInsertRecord(growthInRecordLength)) {
             // the updated record fits into the original page
             RecordAndMetadata recordAndMetadata;
             recordAndMetadata.init(existingRid.pageNum, existingRid.slotNum, false, serializedRecordLength, serializedRecord);
@@ -235,6 +235,8 @@ namespace PeterDB {
             assert(updatedPageNum != -1);
 
             m_page.readPage(fileHandle, updatedPageNum);
+            INFO("Inserting updated record into pageNum=%hu, which currently has %hu bytes free",
+                 updatedPageNum, m_page.getFreeByteCount());
 
             unsigned short updatedSlotNum = m_page.generateSlotForInsertion(serializedRecordLength);
             RecordAndMetadata freshRecordAndMetadata;

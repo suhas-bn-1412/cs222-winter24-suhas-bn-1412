@@ -7,10 +7,12 @@ namespace PeterDB {
     }
 
     RC IndexManager::createFile(const std::string &fileName) {
+        // use pfm.create
         return -1;
     }
 
     RC IndexManager::destroyFile(const std::string &fileName) {
+        // use pfm.destroy()
         return -1;
     }
 
@@ -24,6 +26,9 @@ namespace PeterDB {
 
     RC
     IndexManager::insertEntry(IXFileHandle &ixFileHandle, const Attribute &attribute, const void *key, const RID &rid) {
+        // switch insertion method on attribute
+        // case integer, float, varchar
+
         return -1;
     }
 

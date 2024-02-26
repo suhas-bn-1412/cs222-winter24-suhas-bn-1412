@@ -74,6 +74,9 @@ namespace PeterDB {
     };
 
     class IXFileHandle {
+        // private:
+//        pfm fileHandle
+
     public:
 
         // variables to keep counter for each operation
@@ -89,6 +92,7 @@ namespace PeterDB {
 
         // Put the current counter values of associated PF FileHandles into variables
         RC collectCounterValues(unsigned &readPageCount, unsigned &writePageCount, unsigned &appendPageCount);
+        // use pfm.
 
     };
 }// namespace PeterDB

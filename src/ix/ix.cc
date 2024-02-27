@@ -3,25 +3,24 @@
 namespace PeterDB {
     IndexManager &IndexManager::instance() {
         static IndexManager _index_manager = IndexManager();
+        _index_manager._pagedFileManager = &PagedFileManager::instance();
         return _index_manager;
     }
 
     RC IndexManager::createFile(const std::string &fileName) {
-        // use pfm.create
-        return -1;
+        return _pagedFileManager->createFile(fileName);
     }
 
     RC IndexManager::destroyFile(const std::string &fileName) {
-        // use pfm.destroy()
-        return -1;
+        return _pagedFileManager->destroyFile(fileName);
     }
 
     RC IndexManager::openFile(const std::string &fileName, IXFileHandle &ixFileHandle) {
-        return -1;
+        return _pagedFileManager->openFile(fileName, ixFileHandle._pfmFileHandle);
     }
 
     RC IndexManager::closeFile(IXFileHandle &ixFileHandle) {
-        return -1;
+        return _pagedFileManager->closeFile(ixFileHandle._pfmFileHandle);
     }
 
     RC

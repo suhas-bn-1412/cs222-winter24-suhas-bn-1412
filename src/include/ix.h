@@ -55,6 +55,8 @@ namespace PeterDB {
         IndexManager(const IndexManager &) = default;                               // Prevent construction by copying
         IndexManager &operator=(const IndexManager &) = default;                    // Prevent assignment
 
+    private:
+        static PagedFileManager *_pagedFileManager;
     };
 
     class IX_ScanIterator {
@@ -74,15 +76,14 @@ namespace PeterDB {
     };
 
     class IXFileHandle {
-        // private:
-//        pfm fileHandle
-
     public:
 
         // variables to keep counter for each operation
         unsigned ixReadPageCounter;
         unsigned ixWritePageCounter;
         unsigned ixAppendPageCounter;
+
+        FileHandle _pfmFileHandle;
 
         // Constructor
         IXFileHandle();

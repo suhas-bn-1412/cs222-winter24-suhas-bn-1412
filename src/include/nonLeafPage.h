@@ -8,10 +8,10 @@
 namespace PeterDB {
     class PageNumAndKey {
     private:
-        const unsigned int pageNum;
-        int intKey;
-        float floatKey;
-        std::string stringKey;
+        const unsigned int _pageNum;
+        int _intKey;
+        float _floatKey;
+        std::string _stringKey;
 
     public:
         PageNumAndKey(unsigned int pageNum, int intKey);
@@ -35,12 +35,21 @@ namespace PeterDB {
 
         const Attribute &getKeyType() const;
 
+        unsigned int getNextPageNum() const;
+
         unsigned int getFreeByteCount() const;
 
+        unsigned int getNumKeys();
+
+        void setNextPageNum(unsigned int nextPageNum);
+
+        void setFreeByteCount(unsigned int freeByteCount);
+
     private:
-        std::vector<PageNumAndKey> pageNumAndKeys;
-        Attribute keyType;
-        unsigned int freeByteCount;
+        std::vector<PageNumAndKey> _pageNumAndKeys;
+        Attribute _keyType;
+        unsigned int _nextPageNum;
+        unsigned int _freeByteCount;
     };
 }
 

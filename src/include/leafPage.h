@@ -8,10 +8,10 @@ namespace PeterDB {
     class RidAndKey {
 
     private:
-        const RID rid;
-        int intKey;
-        float floatKey;
-        std::string stringKey;
+        const RID _rid;
+        int _intKey;
+        float _floatKey;
+        std::string _stringKey;
 
     public:
         RidAndKey(const RID &rid, int intKey);
@@ -28,20 +28,29 @@ namespace PeterDB {
 
         const std::string &getStringKey() const;
     };
-    
+
     class LeafPage {
     private:
-        std::vector<RidAndKey> ridAndKey;
-        Attribute keyType;
-        unsigned int freeByteCount;
+        std::vector<RidAndKey> _ridAndKeyPairs;
+        Attribute _keyType;
+        unsigned int _nextPageNum;
+        unsigned int _freeByteCount;
 
     public:
-            const std::vector<RidAndKey> &getRidAndKey() const;
+        const std::vector<RidAndKey> &getRidAndKeyPairs() const;
 
-            const Attribute &getKeyType() const;
+        const Attribute &getKeyType() const;
 
-            unsigned int getFreeByteCount() const;
-        };
+        unsigned int getNextPageNum() const;
+
+        unsigned int getFreeByteCount() const;
+
+        unsigned int getNumKeys() const;
+
+        void setNextPageNum(unsigned int nextPageNum);
+
+        void setFreeByteCount(unsigned int freeByteCount);
+    };
 }
 
 #endif

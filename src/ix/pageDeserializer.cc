@@ -4,6 +4,10 @@ typedef char byte;
 
 namespace PeterDB {
 
+    bool PageDeserializer::isLeafPage(const void *data) {
+        return false;
+    }
+
     void PageDeserializer::toNonLeafPage(const void *data, NonLeafPage &nonLeafPage) {
 
     }

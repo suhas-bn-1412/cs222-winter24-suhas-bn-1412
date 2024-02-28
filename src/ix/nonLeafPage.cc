@@ -2,6 +2,14 @@
 
 namespace PeterDB {
 
+    /*
+     * Use this to create a fresh page in-memory
+     */
+    NonLeafPage::NonLeafPage() {
+//        todo:
+//        _freeByteCount = PAGE_SIZE -
+    }
+
     const std::vector<PageNumAndKey> & NonLeafPage::getPageNumAndKeys() const {
         return _pageNumAndKeys;
     }
@@ -18,16 +26,20 @@ namespace PeterDB {
         return _nextPageNum;
     }
 
-    unsigned int NonLeafPage::getNumKeys() {
+    unsigned int NonLeafPage::getNumKeys() const {
         return _pageNumAndKeys.size();
     }
 
-    void NonLeafPage::setNextPageNum(unsigned int nextPageNum) {
+    void NonLeafPage::setNextPageNum(const unsigned int nextPageNum) {
         NonLeafPage::_nextPageNum = nextPageNum;
     }
 
-    void NonLeafPage::setFreeByteCount(unsigned int freeByteCount) {
+    void NonLeafPage::setFreeByteCount(const unsigned int freeByteCount) {
         NonLeafPage::_freeByteCount = freeByteCount;
+    }
+
+    void NonLeafPage::setKeyType(const Attribute keyType) {
+        NonLeafPage::_keyType = keyType;
     }
 
     PageNumAndKey::PageNumAndKey(unsigned int pageNum, int intKey) : _pageNum(pageNum), _intKey(intKey) {}

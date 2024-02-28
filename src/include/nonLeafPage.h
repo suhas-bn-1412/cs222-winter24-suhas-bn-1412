@@ -31,6 +31,12 @@ namespace PeterDB {
 
     class NonLeafPage {
     public:
+        // to be used to create a new NonLeafPage in-memory. Be sure to correctly set freeByteCount, etc
+        NonLeafPage();
+
+        // to be used by deserializer
+        NonLeafPage(const Attribute &keyType, unsigned int nextPageNum, unsigned int freeByteCount);
+
         const std::vector<PageNumAndKey> &getPageNumAndKeys() const;
 
         const Attribute &getKeyType() const;
@@ -39,11 +45,13 @@ namespace PeterDB {
 
         unsigned int getFreeByteCount() const;
 
-        unsigned int getNumKeys();
+        unsigned int getNumKeys() const;
 
-        void setNextPageNum(unsigned int nextPageNum);
+        void setNextPageNum(const unsigned int nextPageNum);
 
-        void setFreeByteCount(unsigned int freeByteCount);
+        void setFreeByteCount(const unsigned int freeByteCount);
+
+        void setKeyType(const Attribute keyType);
 
     private:
         std::vector<PageNumAndKey> _pageNumAndKeys;

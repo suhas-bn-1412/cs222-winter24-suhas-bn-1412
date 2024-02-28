@@ -24,6 +24,14 @@ namespace PeterDB {
         return _stringKey;
     }
 
+    /*
+     * To be used to create a fresh leafPage in-memory
+     */
+    LeafPage::LeafPage() {
+        //todo:
+//        freeByteCount = PAGE_SIZE -
+    }
+
     const std::vector<RidAndKey> &LeafPage::getRidAndKeyPairs() const {
         return _ridAndKeyPairs;
     }
@@ -44,11 +52,15 @@ namespace PeterDB {
         return _ridAndKeyPairs.size();
     }
 
-    void LeafPage::setNextPageNum(unsigned int nextPageNum) {
+    void LeafPage::setNextPageNum(const unsigned int nextPageNum) {
         LeafPage::_nextPageNum = nextPageNum;
     }
 
-    void LeafPage::setFreeByteCount(unsigned int freeByteCount) {
+    void LeafPage::setFreeByteCount(const unsigned int freeByteCount) {
         LeafPage::_freeByteCount = freeByteCount;
+    }
+
+    void LeafPage::setKeyType(const Attribute &keyType) {
+        _keyType = keyType;
     }
 }

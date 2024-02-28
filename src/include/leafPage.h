@@ -37,6 +37,11 @@ namespace PeterDB {
         unsigned int _freeByteCount;
 
     public:
+        /*
+         * To be used to create a fresh leafPage in-memory
+         */
+        LeafPage();
+
         const std::vector<RidAndKey> &getRidAndKeyPairs() const;
 
         const Attribute &getKeyType() const;
@@ -47,9 +52,11 @@ namespace PeterDB {
 
         unsigned int getNumKeys() const;
 
-        void setNextPageNum(unsigned int nextPageNum);
+        void setNextPageNum(const unsigned int nextPageNum);
 
-        void setFreeByteCount(unsigned int freeByteCount);
+        void setFreeByteCount(const unsigned int freeByteCount);
+
+        void setKeyType(const Attribute &keyType);
     };
 }
 

@@ -8,11 +8,21 @@
 namespace PeterDB {
     class PageDeserializer {
     public:
-        bool isLeafPage(const void *data);
+        static bool isLeafPage(const void *data);
 
-        void toNonLeafPage(const void *data, NonLeafPage &nonLeafPage);
+        static void toNonLeafPage(const void *data, NonLeafPage &nonLeafPage);
 
-        void toLeafPage(const void *data, LeafPage &leafPage);
+        static void toLeafPage(const void *data, LeafPage &leafPage);
+
+        static const unsigned int readFreeByteCount(const void *data);
+
+        static const Attribute readKeyType(const void *data);
+
+        static const unsigned int readNextPageNum(const void *data);
+
+        static void readPageNumAndKeyPairs(const std::vector<PageNumAndKey> &pageNumAndKeyPairs, const void *data);
+
+        static void readKeyAndRidPairs(const std::vector<RidAndKey> &keyAndRidPairs, const void *data);
     };
 }
 

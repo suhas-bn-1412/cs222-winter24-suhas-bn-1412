@@ -5,7 +5,7 @@ typedef char byte;
 
 namespace PeterDB {
 
-    void PageSerializer::toBytes(NonLeafPage nonLeafPage, void *data) {
+    void PageSerializer::toBytes(const NonLeafPage &nonLeafPage, void *data) {
         writeFreeByteCount(nonLeafPage.getFreeByteCount(), data);
         writeIsLeafPage(false, data);
         writeKeyType(nonLeafPage.getKeyType(), data);
@@ -64,7 +64,7 @@ namespace PeterDB {
         byte *writePtr = (byte *) data;
         const size_t pageNumSize = sizeof(unsigned int);
 
-        for (const auto &pageNumAndKey: nonLeafPage.getPageNumAndKeys()) {
+        for ( auto &pageNumAndKey: nonLeafPage.getPageNumAndKeys()) {
             // write _pageNum to file
             const unsigned int pageNum = pageNumAndKey.getPageNum();
             memcpy((void *) writePtr, (void *) &pageNum, pageNumSize);
@@ -95,8 +95,6 @@ namespace PeterDB {
                     assert(1);
             }
         }
-
-
     }
 
     void PageSerializer::writeKeyAndRidPair(const LeafPage &leafPage, void *data) {

@@ -22,7 +22,7 @@ namespace PeterDB {
         static const size_t FREEBYTE_COUNT_VAR_SIZE = sizeof(unsigned int);
         static const size_t IS_LEAF_PAGE_VAR_SIZE = sizeof(bool);
         static const size_t KEY_TYPE_VAR_SIZE = sizeof(Attribute);
-        static const size_t NEXT_PAGE_NUM_VAR_SIZE = sizeof(unsigned int);
+        static const size_t NEXT_PAGE_NUM_VAR_SIZE = sizeof(int);
         static const size_t NUM_KEYS_VAR_SIZE = sizeof(unsigned int);
 
         static const unsigned int FREEBYTE_COUNT_OFFSET = PAGE_SIZE - FREEBYTE_COUNT_VAR_SIZE;

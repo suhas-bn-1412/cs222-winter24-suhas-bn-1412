@@ -14,15 +14,17 @@ namespace PeterDB {
 
         static void toLeafPage(const void *data, LeafPage &leafPage);
 
-        static const unsigned int readFreeByteCount(const void *data);
+        static unsigned int readFreeByteCount(const void *data);
 
-        static const Attribute readKeyType(const void *data);
+        static Attribute readKeyType(const void *data);
 
-        static const unsigned int readNextPageNum(const void *data);
+        static unsigned int readNextPageNum(const void *data);
 
-        static void readPageNumAndKeyPairs(const std::vector<PageNumAndKey> &pageNumAndKeyPairs, const void *data);
+        static unsigned int readNumKeys(const void *data);
 
-        static void readKeyAndRidPairs(const std::vector<RidAndKey> &keyAndRidPairs, const void *data);
+        static void readPageNumAndKeyPairs(NonLeafPage &nonLeafPage, const void *data, unsigned int numKeys);
+
+        static void readKeyAndRidPairs(LeafPage &leafPage, const void *data, unsigned int numKeys);
     };
 }
 

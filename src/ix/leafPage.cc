@@ -1,4 +1,5 @@
 #include "src/include/leafPage.h"
+#include "src/include/pageSerDesConstants.h"
 
 namespace PeterDB {
 
@@ -20,7 +21,7 @@ namespace PeterDB {
         return _floatKey;
     }
 
-    const std::string &RidAndKey::getStringKey() const {
+    std::string &RidAndKey::getStringKey() {
         return _stringKey;
     }
 
@@ -28,11 +29,15 @@ namespace PeterDB {
      * To be used to create a fresh leafPage in-memory
      */
     LeafPage::LeafPage() {
-        //todo:
-//        freeByteCount = PAGE_SIZE -
+        _freeByteCount = PAGE_SIZE
+                         - PageSerDesConstants::FREEBYTE_COUNT_VAR_SIZE
+                         - PageSerDesConstants::IS_LEAF_PAGE_VAR_SIZE
+                         - PageSerDesConstants::KEY_TYPE_VAR_SIZE
+                         - PageSerDesConstants::NEXT_PAGE_NUM_VAR_SIZE
+                         - PageSerDesConstants::NUM_KEYS_VAR_SIZE;
     }
 
-    const std::vector<RidAndKey> &LeafPage::getRidAndKeyPairs() const {
+    std::vector<RidAndKey> &LeafPage::getRidAndKeyPairs(){
         return _ridAndKeyPairs;
     }
 
@@ -40,7 +45,10 @@ namespace PeterDB {
         return _keyType;
     }
 
-    unsigned int LeafPage::getNextPageNum() const {
+    /*
+     * returns -1 to indicate that this is the last Node
+     */
+    int LeafPage::getNextPageNum() const {
         return _nextPageNum;
     }
 
@@ -52,7 +60,7 @@ namespace PeterDB {
         return _ridAndKeyPairs.size();
     }
 
-    void LeafPage::setNextPageNum(const unsigned int nextPageNum) {
+    void LeafPage::setNextPageNum(const int nextPageNum) {
         LeafPage::_nextPageNum = nextPageNum;
     }
 

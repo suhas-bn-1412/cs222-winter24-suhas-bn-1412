@@ -8,6 +8,8 @@
 #include "rbfm.h" // for some type declarations only, e.g., RID and Attribute
 #include "leafPage.h"
 #include "nonLeafPage.h"
+#include "pageSerializer.h"
+#include "pageDeserializer.h"
 
 # define IX_EOF (-1)  // end of the index scan
 
@@ -51,6 +53,11 @@ namespace PeterDB {
         // Print the B+ tree in pre-order (in a JSON record format)
         RC printBTree(IXFileHandle &ixFileHandle, const Attribute &attribute, std::ostream &out) const;
 
+        RC insertHelper(IXFileHandle& fileHandle, PageNum node, const RidAndKey& entry, PageNumAndKey& newChild);
+
+        template<typename T>
+        RC writePageToDisk(IXFileHandle& fileHandle, T& page, int pageNum);
+
     protected:
         IndexManager() = default;                                                   // Prevent construction
         ~IndexManager() = default;                                                  // Prevent unwanted destruction
@@ -59,6 +66,8 @@ namespace PeterDB {
 
     private:
         static PagedFileManager *_pagedFileManager;
+        PageDeserializer* deserializer = nullptr;
+        PageSerializer* serializer = nullptr;
 
         static unsigned int getLowerLevelNode(const void *searchKey, const Attribute &attribute, NonLeafPage &pageData);
 
@@ -109,6 +118,9 @@ namespace PeterDB {
         unsigned ixWritePageCounter;
         unsigned ixAppendPageCounter;
 
+        std::string _fileName = "";
+        unsigned int _rootPagePtr = 0;
+
         FileHandle _pfmFileHandle;
 
         // Constructor
@@ -119,8 +131,9 @@ namespace PeterDB {
 
         // Put the current counter values of associated PF FileHandles into variables
         RC collectCounterValues(unsigned &readPageCount, unsigned &writePageCount, unsigned &appendPageCount);
-        // use pfm.
 
+        void fetchRootNodePtrFromDisk();
+        void writeRootNodePtrToDisk();
     };
 }// namespace PeterDB
 #endif // _ix_h_

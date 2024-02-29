@@ -20,13 +20,15 @@ namespace PeterDB {
 
         RidAndKey(const RID &rid, const std::string &stringKey);
 
+        RidAndKey& operator=(const RidAndKey& other);
+
         const RID &getRid() const;
 
         int getIntKey() const;
 
         float getFloatKey() const;
 
-        std::string &getStringKey();
+        const std::string& getStringKey() const;
     };
 
     class LeafPage {
@@ -42,7 +44,7 @@ namespace PeterDB {
          */
         LeafPage();
 
-        std::vector<RidAndKey> &getRidAndKeyPairs();
+        std::vector<RidAndKey>& getRidAndKeyPairs();
 
         const Attribute &getKeyType() const;
 
@@ -65,6 +67,22 @@ namespace PeterDB {
         void setFreeByteCount(const unsigned int freeByteCount);
 
         void setKeyType(const Attribute &keyType);
+
+        /*
+         * Compare the given keys
+         * returns 0 if both are equal
+         * returns -1 if first is less than second
+         * returns 1 if first is greater than second
+         */
+        int compare(const RidAndKey& first, const RidAndKey& second);
+
+        bool getRequiredSpace(const RidAndKey& entry);
+
+        bool canInsert(const RidAndKey& entry);
+
+        void insertEntry(const RidAndKey& entry, bool force);
+
+        void resetMetadata();
     };
 }
 

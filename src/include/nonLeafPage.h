@@ -4,32 +4,52 @@
 
 #include <cstring>
 #include "rbfm.h"
+#include "leafPage.h"
 
 namespace PeterDB {
     class PageNumAndKey {
     private:
-        const unsigned int _pageNum;
+        unsigned int _pageNum;
         int _intKey;
         float _floatKey;
         std::string _stringKey;
+        bool valid = false;
 
     public:
+        PageNumAndKey();
+
+        PageNumAndKey(unsigned int pageNum);
+
         PageNumAndKey(unsigned int pageNum, int intKey);
 
         PageNumAndKey(unsigned int pageNum, float floatKey);
 
         PageNumAndKey(unsigned int pageNum, const std::string &stringKey);
 
+        PageNumAndKey& operator=(const PageNumAndKey& other);
+
         unsigned int getPageNum() const;
+
+        void setPageNum(unsigned int pageNum);
 
         int getIntKey() const;
 
         float getFloatKey() const;
 
-        std::string &getStringKey();
+        const std::string& getStringKey() const;
+
+        bool isValid() const;
+
+        void makeInvalid();
     };
 
     class NonLeafPage {
+    private:
+        std::vector<PageNumAndKey> _pageNumAndKeys;
+        Attribute _keyType;
+        unsigned int _nextPageNum;
+        unsigned int _freeByteCount;
+
     public:
         /*
          * Use this to create a fresh page in-memory
@@ -37,7 +57,7 @@ namespace PeterDB {
          */
         NonLeafPage();
 
-        std::vector<PageNumAndKey> &getPageNumAndKeys();
+        std::vector<PageNumAndKey>& getPageNumAndKeys();
 
         const Attribute &getKeyType() const;
 
@@ -61,11 +81,25 @@ namespace PeterDB {
 
         void setKeyType(Attribute keyType);
 
-    private:
-        std::vector<PageNumAndKey> _pageNumAndKeys;
-        Attribute _keyType;
-        int _nextPageNum;
-        unsigned int _freeByteCount;
+        /*
+         * Compare the given keys
+         * returns 0 if both are equal
+         * returns -1 if first is less than second
+         * returns 1 if first is greater than second
+         */
+        int compare(const PageNumAndKey& first, const PageNumAndKey& second);
+        int comparePageNumAndKeyAndRidAndKey(const PageNumAndKey& first,
+                                             const RidAndKey& second);
+
+        int findNextPage(const RidAndKey& entry);
+
+        bool getRequiredSpace(const PageNumAndKey& entry);
+
+        bool canInsert(const PageNumAndKey& entry);
+
+        void insertGuideNode(PageNumAndKey& entry, unsigned int nextPagePtr, bool force);
+
+        void resetMetadata();
     };
 }
 

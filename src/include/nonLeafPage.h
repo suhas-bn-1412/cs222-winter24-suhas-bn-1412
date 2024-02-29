@@ -26,37 +26,45 @@ namespace PeterDB {
 
         float getFloatKey() const;
 
-        const std::string &getStringKey() const;
+        std::string &getStringKey();
     };
 
     class NonLeafPage {
     public:
-        // to be used to create a new NonLeafPage in-memory. Be sure to correctly set freeByteCount, etc
+        /*
+         * Use this to create a fresh page in-memory
+         * Ensure to subsequently "serialize" it to write through to file
+         */
         NonLeafPage();
 
-        // to be used by deserializer
-        NonLeafPage(const Attribute &keyType, unsigned int nextPageNum, unsigned int freeByteCount);
-
-        const std::vector<PageNumAndKey> &getPageNumAndKeys() const;
+        std::vector<PageNumAndKey> &getPageNumAndKeys();
 
         const Attribute &getKeyType() const;
 
-        unsigned int getNextPageNum() const;
+        /*
+         * returns -1 to indicate that this is the last Node
+         */
+        int getNextPageNum() const;
 
         unsigned int getFreeByteCount() const;
 
         unsigned int getNumKeys() const;
 
-        void setNextPageNum(const unsigned int nextPageNum);
+        void setNextPageNum(int nextPageNum);
 
-        void setFreeByteCount(const unsigned int freeByteCount);
+        /*
+         * This represents the freeByteCount of the page on-file
+         * Implying that when string keys are added/ deleted,
+         * the freeByteCount must be set (by the caller) keeping in mind the varchar representation
+        */
+        void setFreeByteCount(unsigned int freeByteCount);
 
-        void setKeyType(const Attribute keyType);
+        void setKeyType(Attribute keyType);
 
     private:
         std::vector<PageNumAndKey> _pageNumAndKeys;
         Attribute _keyType;
-        unsigned int _nextPageNum;
+        int _nextPageNum;
         unsigned int _freeByteCount;
     };
 }

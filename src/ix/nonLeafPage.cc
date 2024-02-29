@@ -1,16 +1,22 @@
 #include "src/include/nonLeafPage.h"
+#include "src/include/pageSerDesConstants.h"
 
 namespace PeterDB {
 
     /*
      * Use this to create a fresh page in-memory
+     * Ensure to subsequently "serialize" it to write through to file
      */
     NonLeafPage::NonLeafPage() {
-//        todo:
-//        _freeByteCount = PAGE_SIZE -
+        _freeByteCount = PAGE_SIZE
+                         - PageSerDesConstants::FREEBYTE_COUNT_VAR_SIZE
+                         - PageSerDesConstants::IS_LEAF_PAGE_VAR_SIZE
+                         - PageSerDesConstants::KEY_TYPE_VAR_SIZE
+                         - PageSerDesConstants::NEXT_PAGE_NUM_VAR_SIZE
+                         - PageSerDesConstants::NUM_KEYS_VAR_SIZE;
     }
 
-    const std::vector<PageNumAndKey> & NonLeafPage::getPageNumAndKeys() const {
+    std::vector<PageNumAndKey> &NonLeafPage::getPageNumAndKeys() {
         return _pageNumAndKeys;
     }
 
@@ -22,7 +28,10 @@ namespace PeterDB {
         return _freeByteCount;
     }
 
-    unsigned int NonLeafPage::getNextPageNum() const {
+    /*
+     * returns -1 to indicate that this is the last Node
+     */
+     int NonLeafPage::getNextPageNum() const {
         return _nextPageNum;
     }
 
@@ -30,7 +39,7 @@ namespace PeterDB {
         return _pageNumAndKeys.size();
     }
 
-    void NonLeafPage::setNextPageNum(const unsigned int nextPageNum) {
+    void NonLeafPage::setNextPageNum(const int nextPageNum) {
         NonLeafPage::_nextPageNum = nextPageNum;
     }
 
@@ -61,7 +70,7 @@ namespace PeterDB {
         return _floatKey;
     }
 
-    const std::string &PageNumAndKey::getStringKey() const {
+    std::string &PageNumAndKey::getStringKey() {
         return _stringKey;
     }
 }

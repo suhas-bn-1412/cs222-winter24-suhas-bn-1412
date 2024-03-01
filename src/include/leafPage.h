@@ -8,7 +8,7 @@ namespace PeterDB {
     class RidAndKey {
 
     private:
-        const RID _rid;
+        RID _rid;
         int _intKey;
         float _floatKey;
         std::string _stringKey;

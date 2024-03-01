@@ -5,7 +5,7 @@ typedef char byte;
 
 namespace PeterDB {
 
-    void PageSerializer::toBytes(const NonLeafPage &nonLeafPage, void *data) {
+    void PageSerializer::toBytes(NonLeafPage &nonLeafPage, void *data) {
         writeFreeByteCount(nonLeafPage.getFreeByteCount(), data);
         writeIsLeafPage(false, data);
         writeKeyType(nonLeafPage.getKeyType(), data);
@@ -15,7 +15,7 @@ namespace PeterDB {
         writePageNumAndKeyPairs(nonLeafPage, data);
     }
 
-    void PageSerializer::toBytes(const LeafPage &leafPage, void *data) {
+    void PageSerializer::toBytes(LeafPage &leafPage, void *data) {
         writeFreeByteCount(leafPage.getFreeByteCount(), data);
         writeIsLeafPage(true, data);
         writeKeyType(leafPage.getKeyType(), data);
@@ -25,14 +25,14 @@ namespace PeterDB {
         writeKeyAndRidPair(leafPage, data);
     }
 
-    void PageSerializer::writeFreeByteCount(unsigned int freeByteCount, const void *data) {
+    void PageSerializer::writeFreeByteCount(const unsigned int freeByteCount, const void *data) {
         byte *writePtr = (byte *) data + PageSerDesConstants::FREEBYTE_COUNT_OFFSET;
         memcpy((void *) writePtr,
                (void *) &freeByteCount,
                PageSerDesConstants::FREEBYTE_COUNT_VAR_SIZE);
     }
 
-    void PageSerializer::writeIsLeafPage(bool isLeafPage, void *data) {
+    void PageSerializer::writeIsLeafPage(const bool isLeafPage, void *data) {
         byte *writePtr = (byte *) data + PageSerDesConstants::IS_LEAF_PAGE_OFFSET;
         memcpy((void *) writePtr,
                (void *) &isLeafPage,
@@ -60,11 +60,11 @@ namespace PeterDB {
                PageSerDesConstants::NUM_KEYS_VAR_SIZE);
     }
 
-    void PageSerializer::writePageNumAndKeyPairs(const NonLeafPage &nonLeafPage, const void *data) {
+    void PageSerializer::writePageNumAndKeyPairs(NonLeafPage &nonLeafPage, const void *data) {
         byte *writePtr = (byte *) data;
         const size_t pageNumSize = sizeof(unsigned int);
 
-        for ( auto &pageNumAndKey: nonLeafPage.getPageNumAndKeys()) {
+        for (const auto &pageNumAndKey: nonLeafPage.getPageNumAndKeys()) {
             // write _pageNum to file
             const unsigned int pageNum = pageNumAndKey.getPageNum();
             memcpy((void *) writePtr, (void *) &pageNum, pageNumSize);
@@ -97,7 +97,7 @@ namespace PeterDB {
         }
     }
 
-    void PageSerializer::writeKeyAndRidPair(const LeafPage &leafPage, void *data) {
+    void PageSerializer::writeKeyAndRidPair(LeafPage &leafPage, void *data) {
         byte *writePtr = (byte *) data;
         const size_t ridSize = sizeof(RID);
 

@@ -7,9 +7,9 @@
 namespace PeterDB {
     class PageSerializer {
     public:
-        static void toBytes(const NonLeafPage &nonLeafPage, void *data);
+        static void toBytes(NonLeafPage &nonLeafPage, void *data);
 
-        static void toBytes(const LeafPage &leafPage, void *data);
+        static void toBytes(LeafPage &leafPage, void *data);
 
     private:
 
@@ -19,9 +19,9 @@ namespace PeterDB {
 
         static void writeIsLeafPage(const bool isLeafPage, void *data);
 
-        static void writePageNumAndKeyPairs(const NonLeafPage &nonLeafPage, const void *data);
+        static void writePageNumAndKeyPairs(NonLeafPage &nonLeafPage, const void *data);
 
-        static void writeKeyAndRidPair(const LeafPage &leafPage, void *data);
+        static void writeKeyAndRidPair(LeafPage &leafPage, void *data);
 
         static void writeNextPageNum(unsigned int nextPageNum, void *data);
 

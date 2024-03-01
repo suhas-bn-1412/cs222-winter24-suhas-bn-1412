@@ -219,7 +219,7 @@ namespace PeterDB {
 
     RC
     IXFileHandle::collectCounterValues(unsigned &readPageCount, unsigned &writePageCount, unsigned &appendPageCount) {
-        return -1;
+        return _pfmFileHandle.collectCounterValues(readPageCount, writePageCount, appendPageCount);
     }
 
 } // namespace PeterDB

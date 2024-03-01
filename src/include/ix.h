@@ -6,6 +6,8 @@
 
 #include "pfm.h"
 #include "rbfm.h" // for some type declarations only, e.g., RID and Attribute
+#include "leafPage.h"
+#include "nonLeafPage.h"
 
 # define IX_EOF (-1)  // end of the index scan
 
@@ -57,6 +59,28 @@ namespace PeterDB {
 
     private:
         static PagedFileManager *_pagedFileManager;
+
+        static unsigned int getLowerLevelNode(const void *searchKey, const Attribute &attribute, NonLeafPage &pageData);
+
+        static RC deleteFromPage(const void *targetKey, const RID &targetRid, const Attribute &targetKeyAttribute, PeterDB::LeafPage &leafPage);
+
+        /*
+         * Compares a search key with PageNumAndKey (handling all types)
+         * Return value:
+         * 0   : both the keys are equal
+         * < 0 : 'searchKey' < pageNumAndKeyPair.get___Key()
+         * > 0 : 'searchKey' > pageNumAndKeyPair.get___Key()
+         */
+        static int keyCompare(const void *searchKey, const Attribute &searchKeyType, const PageNumAndKey &pageNumAndKeyPair);
+
+        /*
+        * Compares a search key with RidAndKey (handling all types)
+        * Return value:
+        * 0   : both the keys are equal
+        * < 0 : 'searchKey' < pageNumAndKeyPair.get___Key()
+        * > 0 : 'searchKey' > pageNumAndKeyPair.get___Key()
+        */
+        static int keyCompare(const void *searchKey, const RID searchRid, const Attribute searchKeyType, const RidAndKey ridAndKeyPair);
     };
 
     class IX_ScanIterator {

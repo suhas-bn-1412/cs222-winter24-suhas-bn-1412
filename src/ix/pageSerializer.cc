@@ -46,7 +46,7 @@ namespace PeterDB {
                PageSerDesConstants::KEY_TYPE_VAR_SIZE);
     }
 
-    void PageSerializer::writeNextPageNum(unsigned int nextPageNum, void *data) {
+    void PageSerializer::writeNextPageNum(int nextPageNum, void *data) {
         byte *writePtr = (byte *) data + PageSerDesConstants::NEXT_PAGE_NUM_OFFSET;
         memcpy((void *) writePtr,
                (void *) &nextPageNum,

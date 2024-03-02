@@ -23,7 +23,7 @@ namespace PeterDB {
 
         static void writeKeyAndRidPair(LeafPage &leafPage, void *data);
 
-        static void writeNextPageNum(unsigned int nextPageNum, void *data);
+        static void writeNextPageNum(int nextPageNum, void *data);
 
         static void writeNumKeys(unsigned int numKeys, void *data);
     };

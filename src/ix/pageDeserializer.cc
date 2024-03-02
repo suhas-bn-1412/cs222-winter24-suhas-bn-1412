@@ -15,6 +15,8 @@ namespace PeterDB {
     }
 
     void PageDeserializer::toNonLeafPage(const void *data, NonLeafPage &nonLeafPage) {
+        assert(!PageDeserializer::isLeafPage(data));
+
         nonLeafPage.setFreeByteCount(readFreeByteCount(data));
         nonLeafPage.setKeyType(readKeyType(data));
         nonLeafPage.setNextPageNum(readNextPageNum(data));
@@ -24,6 +26,8 @@ namespace PeterDB {
     }
 
     void PageDeserializer::toLeafPage(const void *data, LeafPage &leafPage) {
+        assert(PageDeserializer::isLeafPage(data));
+
         leafPage.setFreeByteCount(readFreeByteCount(data));
         leafPage.setKeyType(readKeyType(data));
         leafPage.setNextPageNum(readNextPageNum(data));
@@ -50,8 +54,8 @@ namespace PeterDB {
         return keyType;
     }
 
-    unsigned int PageDeserializer::readNextPageNum(const void *data) {
-        unsigned int nextPageNum;
+    int PageDeserializer::readNextPageNum(const void *data) {
+        int nextPageNum;
         byte *readPtr = (byte *) data + PageSerDesConstants::NEXT_PAGE_NUM_OFFSET;
         memcpy((void *) &nextPageNum,
                (void *) readPtr,

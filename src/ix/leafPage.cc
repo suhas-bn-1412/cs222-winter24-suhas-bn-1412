@@ -86,8 +86,10 @@ namespace PeterDB {
         LeafPage::_freeByteCount = freeByteCount;
     }
 
-    void LeafPage::setKeyType(const Attribute &keyType) {
-        _keyType = keyType;
+    void LeafPage::setKeyType(const Attribute keyType) {
+        _keyType.name = keyType.name;
+        _keyType.type = keyType.type;
+        _keyType.length = keyType.length;
     }
 
     /*

@@ -7,10 +7,7 @@ namespace PeterDB {
 
     bool PageDeserializer::isLeafPage(const void *data) {
         byte *readPtr = (byte *) data + PageSerDesConstants::IS_LEAF_PAGE_OFFSET;
-        bool isLeafPage;
-        memcpy((void *) &isLeafPage,
-               (void *) readPtr,
-               PageSerDesConstants::IS_LEAF_PAGE_VAR_SIZE);
+        bool isLeafPage = *( (bool*) readPtr );
         return isLeafPage;
     }
 
@@ -29,7 +26,8 @@ namespace PeterDB {
         assert(PageDeserializer::isLeafPage(data));
 
         leafPage.setFreeByteCount(readFreeByteCount(data));
-        leafPage.setKeyType(readKeyType(data));
+        Attribute keyType = readKeyType(data);
+        leafPage.setKeyType(keyType);
         leafPage.setNextPageNum(readNextPageNum(data));
 
         unsigned int numKeys = readNumKeys(data);

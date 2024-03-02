@@ -9,9 +9,9 @@ namespace PeterDB {
 
     private:
         RID _rid;
-        int _intKey;
-        float _floatKey;
-        std::string _stringKey;
+        int _intKey = 0;
+        float _floatKey = float(0);
+        std::string _stringKey = "";
 
     public:
         RidAndKey(const RID &rid, int intKey);
@@ -35,8 +35,8 @@ namespace PeterDB {
     private:
         std::vector<RidAndKey> _ridAndKeyPairs;
         Attribute _keyType;
-        int _nextPageNum;
-        unsigned int _freeByteCount;
+        int _nextPageNum = -1;
+        unsigned int _freeByteCount = 0;
 
     public:
         /*
@@ -66,7 +66,7 @@ namespace PeterDB {
          */
         void setFreeByteCount(const unsigned int freeByteCount);
 
-        void setKeyType(const Attribute &keyType);
+        void setKeyType(const Attribute keyType);
 
         /*
          * Compare the given keys

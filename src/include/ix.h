@@ -20,6 +20,15 @@ namespace PeterDB {
 
     class IndexManager {
 
+    protected:
+        IndexManager() = default;                                                   // Prevent construction
+        ~IndexManager() = default;                                                  // Prevent unwanted destruction
+        IndexManager(const IndexManager &) = default;                               // Prevent construction by copying
+        IndexManager &operator=(const IndexManager &) = default;                    // Prevent assignment
+        PagedFileManager* _pagedFileManager = nullptr;
+        PageDeserializer* deserializer = nullptr;
+        PageSerializer* serializer = nullptr;
+
     public:
         static IndexManager &instance();
 
@@ -58,16 +67,7 @@ namespace PeterDB {
         template<typename T>
         RC writePageToDisk(IXFileHandle& fileHandle, T& page, int pageNum);
 
-    protected:
-        IndexManager() = default;                                                   // Prevent construction
-        ~IndexManager() = default;                                                  // Prevent unwanted destruction
-        IndexManager(const IndexManager &) = default;                               // Prevent construction by copying
-        IndexManager &operator=(const IndexManager &) = default;                    // Prevent assignment
-
     private:
-        static PagedFileManager *_pagedFileManager;
-        PageDeserializer* deserializer = nullptr;
-        PageSerializer* serializer = nullptr;
 
         static unsigned int getLowerLevelNode(const void *searchKey, const Attribute &attribute, NonLeafPage &pageData);
 

@@ -5,9 +5,12 @@
 namespace PeterDB {
     IndexManager &IndexManager::instance() {
         static IndexManager _index_manager = IndexManager();
-        _index_manager._pagedFileManager = &PagedFileManager::instance();
-        _index_manager.serializer = new PageSerializer();
-        _index_manager.deserializer = new PageDeserializer();
+        if (nullptr == _index_manager._pagedFileManager)
+            _index_manager._pagedFileManager = &PagedFileManager::instance();
+        if (nullptr == _index_manager.serializer)
+            _index_manager.serializer = new PageSerializer();
+        if (nullptr == _index_manager.deserializer)
+            _index_manager.deserializer = new PageDeserializer();
         return _index_manager;
     }
 
@@ -76,7 +79,8 @@ namespace PeterDB {
             leafPage.setKeyType(attribute);
 
             auto newPageNum = ixFileHandle._pfmFileHandle.getNextPageNum();
-            assert(0 == writePageToDisk(ixFileHandle, leafPage, newPageNum));
+            assert(0 == writePageToDisk(ixFileHandle, leafPage, -1 /* create page and insert */));
+            assert(newPageNum == ixFileHandle._pfmFileHandle.getNextPageNum()-1);
 
             ixFileHandle._rootPagePtr = newPageNum;
         }
@@ -125,7 +129,8 @@ namespace PeterDB {
             newRoot.resetMetadata();
 
             auto newRootPageNum = ixFileHandle._pfmFileHandle.getNextPageNum();
-            assert(0 == writePageToDisk(ixFileHandle, newRoot, newRootPageNum));
+            assert(0 == writePageToDisk(ixFileHandle, newRoot, -1 /* create page and insert */));
+            assert(newRootPageNum == ixFileHandle._pfmFileHandle.getNextPageNum()-1);
 
             ixFileHandle._rootPagePtr = newRootPageNum;
         }
@@ -196,6 +201,7 @@ namespace PeterDB {
             }
         }
         assert(1);
+        return 0;
     }
 
     RC IndexManager::deleteFromPage(const void *targetKey, const RID &targetRid, const Attribute &targetKeyAttribute,
@@ -252,6 +258,8 @@ namespace PeterDB {
                 ERROR("Illegal Attribute type");
                 assert(1);
         }
+        assert(0);
+        return 0;
     }
 
     /*
@@ -299,6 +307,8 @@ namespace PeterDB {
                 ERROR("Illegal Attribute type");
                 assert(1);
         }
+        assert(0);
+        return 0;
     }
 
     unsigned int IndexManager::getKeySize(const void *key, const Attribute &attributeOfKey) {
@@ -312,6 +322,8 @@ namespace PeterDB {
                 memcpy(&varcharSize, key, sizeof(varcharSize));
                 return varcharSize + sizeof(varcharSize);
         }
+        assert(0);
+        return 0;
     }
 
     IX_ScanIterator::IX_ScanIterator() {

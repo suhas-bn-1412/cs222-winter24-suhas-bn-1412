@@ -35,7 +35,10 @@ namespace PeterDB {
 
     RC
     IndexManager::deleteEntry(IXFileHandle &ixFileHandle, const Attribute &attribute, const void *key, const RID &rid) {
-        void *pageData = malloc(PAGE_SIZE); //todo: migrate to class member, perhaps Suhas has done this already, so wait for his commits
+        //todo: verify IXFileHandle is active (perhaps Suhas has done this func. already; wait)
+
+        void *pageData = malloc(
+                PAGE_SIZE); //todo: migrate to class member, perhaps Suhas has done this already, so wait for his commits
         unsigned int pageNum;
 
         //todo:
@@ -59,6 +62,11 @@ namespace PeterDB {
         PageDeserializer::toLeafPage(pageData, leafPage);
         RC rc = deleteFromPage(key, rid, attribute, leafPage);
         if (rc == 0) {
+            // update freeByteCount
+            unsigned int oldFreeByteCount = leafPage.getFreeByteCount();
+            unsigned int newFreeByteCount = oldFreeByteCount - getKeySize(key, attribute);
+            leafPage.setFreeByteCount(newFreeByteCount);
+            
             // 4) serialize and write-through the page back back to file to effect the delete operation
             PageSerializer::toBytes(leafPage, pageData);
             ixFileHandle._pfmFileHandle.writePage(pageNum, pageData);
@@ -191,6 +199,19 @@ namespace PeterDB {
             default:
                 ERROR("Illegal Attribute type");
                 assert(1);
+        }
+    }
+
+    unsigned int IndexManager::getKeySize(const void *key, const Attribute &attributeOfKey) {
+        switch (attributeOfKey.type) {
+            case TypeInt:
+                return 4;
+            case TypeReal:
+                return 4;
+            case TypeVarChar:
+                unsigned int varcharSize;
+                memcpy(&varcharSize, key, sizeof(varcharSize));
+                return varcharSize + sizeof(varcharSize);
         }
     }
 

@@ -81,6 +81,8 @@ namespace PeterDB {
         * > 0 : 'searchKey' > pageNumAndKeyPair.get___Key()
         */
         static int keyCompare(const void *searchKey, const RID searchRid, const Attribute searchKeyType, const RidAndKey ridAndKeyPair);
+
+        unsigned int getKeySize(const void *key, const Attribute &attributeOfKey);
     };
 
     class IX_ScanIterator {

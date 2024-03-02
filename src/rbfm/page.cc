@@ -16,16 +16,32 @@ namespace PeterDB {
         setSlotCount(0);
     }
 
-    int Page::getCurrentPage() {
-        return m_pageNum;
-    }
-
     RC Page::readPage(FileHandle &fileHandle, PageNum pageNum) {
+        // if we have same file and same page, then no need to do disk i/o
+        if (fileHandle.getFileName() == m_fileName &&
+            pageNum == m_pageNum) {
+            return 0;
+        }
+
+        // if we have the same file, but different page, then we need
+        // to write the current page to disk before reading the new page
+        if (fileHandle.getFileName() == m_fileName &&
+                -1 != m_pageNum) {
+            auto wp = writePage(fileHandle, m_pageNum);
+            if (0 != wp) {
+                ERROR("Error while writing the page %d into file %s", m_pageNum, fileHandle.getFileName().c_str());
+                return -1;
+            }
+        }
+
+        eraseAndReset();
+
         auto rp = fileHandle.readPage(pageNum, m_data);
         if (0 != rp) {
             return rp;
         }
 
+        m_fileName = fileHandle.getFileName();
         m_pageNum = pageNum;
         return 0;
     }
@@ -35,13 +51,13 @@ namespace PeterDB {
         // those previous operations should have made sure that the current page
         // we have is the same as the pagenum passed to the writePage
         assert(pageNum == m_pageNum);
+        assert(m_fileName == fileHandle.getFileName());
 
         auto wp = fileHandle.writePage(pageNum, m_data);
         if (0 != wp) {
             return wp;
         }
 
-        m_pageNum = pageNum;
         return 0;
     }
 
@@ -53,7 +69,7 @@ namespace PeterDB {
     }
 
     void Page::insertRecord(RecordAndMetadata *recordAndMetadata, unsigned short slotNum) {
-        if (!canInsertRecord(recordAndMetadata->getRecordAndMetadataLength())) {
+        if (!canInsertRecord(recordAndMetadata->getRecordDataLength())) {
             ERROR("Cannot insert record and metadata of size=%hu into page having %hu bytes free\n",
                   recordAndMetadata->getRecordAndMetadataLength(),
                   getFreeByteCount());
@@ -74,11 +90,15 @@ namespace PeterDB {
             // this was a newly created slot.
             setSlotCount(getSlotCount() + 1);
         }
+
         setFreeByteCount(getFreeByteCount() - recordAndMetadata->getRecordAndMetadataLength() -
                          Slot::SLOT_METADATA_LENGTH_BYTES);
 
-        INFO("Inserted record of length=%hu, dataLength=%hu into slot=%hu. Free bytes avlbl=%hu\n",
-             recordAndMetadata->getRecordAndMetadataLength(), recordAndMetadata->getRecordDataLength(), recordAndMetadata->getSlotNumber(), getFreeByteCount());
+        assert(getFreeByteCount() < PAGE_SIZE);
+
+        INFO("Inserted record of length=%hu, dataLength=%hu into page=%hu, slot=%hu. Free bytes avlbl=%hu\n",
+             recordAndMetadata->getRecordAndMetadataLength(), recordAndMetadata->getRecordDataLength(),
+                m_pageNum, slotNum, getFreeByteCount());
     }
 
     void Page::readRecord(RecordAndMetadata *recordAndMetadata, unsigned short slotNum) {
@@ -113,11 +133,13 @@ namespace PeterDB {
     }
 
     unsigned short Page::getFreeByteCount() {
+        assert(*freeByteCount < PAGE_SIZE);
         return *freeByteCount;
     }
 
     void Page::setFreeByteCount(unsigned short numBytesFree) {
-        *freeByteCount = numBytesFree;
+        assert(numBytesFree < PAGE_SIZE);
+        * freeByteCount = numBytesFree;
     }
 
     unsigned short Page::getSlotCount() {
@@ -193,7 +215,8 @@ namespace PeterDB {
         adjustSlotLength(slotNum, recordAndMetadata->getRecordAndMetadataLength());
         // account for that fact that inserting a record shall decrease freeByteCount.
         // So record the freeBytes "gained" by replacing the existing record.
-        setFreeByteCount(getFreeByteCount() + getSlot(slotNum).getRecordLengthBytes());
+        // Also, we are re-using a slot
+        setFreeByteCount(getFreeByteCount() + getSlot(slotNum).getRecordLengthBytes() + Slot::SLOT_METADATA_LENGTH_BYTES);
         insertRecord(recordAndMetadata, slotNum);
     }
 

@@ -27,6 +27,15 @@ namespace PeterDB {
     }
 
     RC RecordBasedFileManager::destroyFile(const std::string &fileName) {
+        m_fileOpenRefCount.erase(fileName);
+ 
+        // Check if PageSelector for this filename exists
+        auto it = m_pageSelectors.find(fileName);
+        if (it != m_pageSelectors.end()) {
+            delete it->second;
+            m_pageSelectors.erase(it);
+        }
+
         return m_pagedFileManager->destroyFile(fileName);
     }
 
@@ -35,6 +44,11 @@ namespace PeterDB {
         if (0 != retCode) {
             return retCode;
         }
+
+        if (m_fileOpenRefCount.end() == m_fileOpenRefCount.find(fileName)) {
+            m_fileOpenRefCount[fileName] = 0;
+        }
+        m_fileOpenRefCount[fileName]++;
 
         // Check if PageSelector for this filename already exists
         auto it = m_pageSelectors.find(fileName);
@@ -49,9 +63,17 @@ namespace PeterDB {
     }
 
     RC RecordBasedFileManager::closeFile(FileHandle &fileHandle) {
+        if (m_fileOpenRefCount.end() == m_fileOpenRefCount.find(fileHandle.getFileName())) {
+            // return failure ??, fow now returning 0
+            return 0;
+        }
+
+        m_fileOpenRefCount[fileHandle.getFileName()]--;
+        int curRefCount = m_fileOpenRefCount[fileHandle.getFileName()];
+
         // Check if PageSelector for this filename exists
         auto it = m_pageSelectors.find(fileHandle.getFileName());
-        if (it != m_pageSelectors.end()) {
+        if (it != m_pageSelectors.end() && curRefCount==0) {
             // Write metadata to disk and delete the PageSelector
             it->second->writeMetadataToDisk();
             delete it->second;
@@ -191,13 +213,13 @@ namespace PeterDB {
 
         // 3. If the new record still fits into the original page, just update the record in-place.
         unsigned short oldLengthOfRecord = m_page.getRecordLengthBytes(existingRid.slotNum);
-        unsigned short newLengthOfRecord = serializedRecordLength;
+        unsigned short newLengthOfRecord = serializedRecordLength + RecordAndMetadata::RECORD_METADATA_LENGTH_BYTES;
         INFO("Updating record in page=%hu, slot=%hu. Old size=%hu, new size=%hu\n",
              existingRid.pageNum, existingRid.slotNum, oldLengthOfRecord,
              newLengthOfRecord);
 
         int growthInRecordLength = newLengthOfRecord - oldLengthOfRecord;
-        if (growthInRecordLength <= 0 || m_page.canInsertRecord(growthInRecordLength - 4)) {
+        if (growthInRecordLength <= 0 || m_page.canInsertRecord(growthInRecordLength)) {
             // the updated record fits into the original page
             RecordAndMetadata recordAndMetadata;
             recordAndMetadata.init(existingRid.pageNum, existingRid.slotNum, false, serializedRecordLength, serializedRecord);
@@ -213,6 +235,8 @@ namespace PeterDB {
             assert(updatedPageNum != -1);
 
             m_page.readPage(fileHandle, updatedPageNum);
+            INFO("Inserting updated record into pageNum=%hu, which currently has %hu bytes free",
+                 updatedPageNum, m_page.getFreeByteCount());
 
             unsigned short updatedSlotNum = m_page.generateSlotForInsertion(serializedRecordLength);
             RecordAndMetadata freshRecordAndMetadata;
@@ -231,48 +255,25 @@ namespace PeterDB {
             m_page.readPage(fileHandle, existingRid.pageNum);
             m_page.updateRecord(&tombstoneRecordAndMetadata, existingRid.slotNum);
             m_page.writePage(fileHandle, existingRid.pageNum);
-            m_pageSelectors[fileHandle.getFileName()]->decrementAvailableSpace(existingRid.pageNum, sizeof(RID) - oldLengthOfRecord);
+            m_pageSelectors[fileHandle.getFileName()]->decrementAvailableSpace(existingRid.pageNum, tombstoneRecordAndMetadata.getRecordAndMetadataLength() - oldLengthOfRecord);
         }
 
         free(serializedRecord);
         return 0;
     }
 
+    // returns nullFlag + data
     RC RecordBasedFileManager::readAttribute(FileHandle &fileHandle, const std::vector<Attribute> &recordDescriptor,
                                              const RID &rid, const std::string &attributeName, void *data) {
         auto attrNames = std::vector<std::string>();
         attrNames.push_back(attributeName);
 
-        Attribute attrInfo;
-        for (auto &record : recordDescriptor) {
-            if (attributeName == record.name) {
-                attrInfo = record;
-                break;
-            }
-        }
-        assert(attrInfo.name != "");
-
-        // to read varchar we need 4 extra byte in the beginning to know the length of it
-        void *dataToBeRead = malloc(1 /*for null flag*/ + ((attrInfo.type == TypeVarChar) ? (VARCHAR_ATTR_LEN_SZ + attrInfo.length) : attrInfo.length));
-        assert(nullptr != dataToBeRead);
-
-        auto rr = readRecordWithAttrFilter(fileHandle, recordDescriptor, attrNames, rid, dataToBeRead);
+        auto rr = readRecordWithAttrFilter(fileHandle, recordDescriptor, attrNames, rid, data);
         if (0 != rr) {
             ERROR("Error while reading attribute %s in record P.%d S.%d \n", attributeName, rid.pageNum, rid.slotNum);
-            free(dataToBeRead);
             return rr;
         }
 
-        void *tmp = dataToBeRead;
-        dataToBeRead = (void*)( (char*)dataToBeRead + 1 /*for null flag*/);
-        if (TypeVarChar == attrInfo.type) {
-            auto len = *( (uint32_t*) dataToBeRead );
-            memmove(data, (void*)( (char*) dataToBeRead + VARCHAR_ATTR_LEN_SZ ), len);
-        } else {
-            memmove(data, dataToBeRead, INT_SZ);
-        }
-
-        free(tmp);
         return 0;
     }
 
@@ -305,8 +306,8 @@ namespace PeterDB {
         auto rp = m_page.readPage(fileHandle, pageNumber);
         assert(0 == rp);
         m_page.eraseAndReset();
-        auto rc = m_page.writePage(fileHandle, pageNumber);
-        assert(rc == 0);
+        // auto rc = m_page.writePage(fileHandle, pageNumber);
+        // assert(rc == 0);
     }
 
     bool RecordBasedFileManager::isValidDataPage(FileHandle &fileHandle, PageNum pageNum) {
@@ -332,14 +333,12 @@ namespace PeterDB {
         }
 
         // check if given slot is present in this page
-        if ((m_page.getCurrentPage() == -1) || (m_page.getCurrentPage() != rid.pageNum)) {
-            auto rp = m_page.readPage(fileHandle, rid.pageNum);
-            assert(0 == rp);
+        auto rp = m_page.readPage(fileHandle, rid.pageNum);
+        assert(0 == rp);
 
-            if (0 != rp) {
-                ERROR("Error while reading the page %d from file %s \n", rid.pageNum, fileHandle.getFileName());
-                return false;
-            }
+        if (0 != rp) {
+            ERROR("Error while reading the page %d from file %s \n", rid.pageNum, fileHandle.getFileName());
+            return false;
         }
 
         if (rid.slotNum >= m_page.getSlotCount()) {
@@ -357,14 +356,12 @@ namespace PeterDB {
         }
 
         // check if given slot is present in this page
-        if ((m_page.getCurrentPage() == -1) || (m_page.getCurrentPage() != rid.pageNum)) {
-            auto rp = m_page.readPage(fileHandle, rid.pageNum);
-            assert(0 == rp);
+        auto rp = m_page.readPage(fileHandle, rid.pageNum);
+        assert(0 == rp);
 
-            if (0 != rp) {
-                ERROR("Error while reading the page %d from file %s \n", rid.pageNum, fileHandle.getFileName());
-                return true;
-            }
+        if (0 != rp) {
+            ERROR("Error while reading the page %d from file %s \n", rid.pageNum, fileHandle.getFileName());
+            return true;
         }
 
         if (rid.slotNum >= m_page.getSlotCount()) {
@@ -383,8 +380,44 @@ namespace PeterDB {
         m_recodrdDescriptor = recordDescriptor;
         m_conditionAttribute = conditionAttribute;
         m_compOp = compOp;
-        m_value = value;
         m_attributeNames = attributeNames;
+
+        auto attrType = TypeInt;
+        for (auto &attr : recordDescriptor) {
+            if (attr.name == conditionAttribute) {
+                attrType = attr.type;
+                break;
+            }
+        }
+
+        if (nullptr != value) {
+            unsigned bytesToCopy = 0;
+            switch (attrType) {
+                case TypeInt:
+                case TypeReal:
+                    bytesToCopy = INT_SZ;
+                    break;
+                case TypeVarChar:
+                    bytesToCopy = VARCHAR_ATTR_LEN_SZ + *( (uint32_t*) value );
+                    break;
+                default:
+                    break;
+            }
+
+            m_value = malloc(bytesToCopy);
+            assert(nullptr != m_value);
+            memmove(m_value, value, bytesToCopy);
+        }
+    }
+
+    RC RBFM_ScanIterator::close() {
+        m_initDone = false;
+        m_scanStarted = false;
+        m_rbfm = nullptr;
+        m_fileHandle = nullptr;
+        free(m_value);
+        m_value = nullptr;
+        return 0;
     }
 
     bool RBFM_ScanIterator::pickNextValidRID() {
@@ -458,8 +491,22 @@ namespace PeterDB {
         return false;
     }
 
-    int varcharCompare(const CompOp &op, const uint32_t &len, const char *str1, const char *str2) {
-        int result = strncmp(str1, str2, len);
+    int varcharCompare(const CompOp &op,
+                       const uint32_t &len1, const uint32_t& len2,
+                       const char *str1, const char *str2) {
+        char* s1 = new char[len1 + 1];
+        char* s2 = new char[len2 + 1];
+
+        std::memcpy(s1, str1, len1);
+        std::memcpy(s2, str2, len2);
+
+        s1[len1] = '\0'; // Null-terminate the strings
+        s2[len2] = '\0';
+
+        int result = strcmp(s1, s2);
+
+        delete[] s1;
+        delete[] s2;
 
         switch (op) {
             case EQ_OP:
@@ -492,10 +539,7 @@ namespace PeterDB {
                 // has the length of the varchar string and next <n> bytes has the data
                 uint32_t len1 = * ( (uint32_t*) data);
                 uint32_t len2 = * ( (uint32_t*) expected);
-                if (len1 != len2) {
-                    return false;
-                }
-                return varcharCompare(compOp, len1, ( (char*) data + VARCHAR_ATTR_LEN_SZ ), ( (char*)expected + VARCHAR_ATTR_LEN_SZ ) );
+                return varcharCompare(compOp, len1, len2, ( (char*) data + VARCHAR_ATTR_LEN_SZ ), ( (char*)expected + VARCHAR_ATTR_LEN_SZ ) );
         }
         return false;
     }
@@ -510,17 +554,25 @@ namespace PeterDB {
 
         void *data = nullptr;
 
-        AttrType condAttrType = TypeInt;
+        Attribute attr;
+        bool attrFound = false;
 
         for (auto &recordInfo : m_recodrdDescriptor) {
             if (recordInfo.name == m_conditionAttribute) {
-                data = malloc(recordInfo.length);
-                memset(data, 0, recordInfo.length);
-                condAttrType = recordInfo.type;
-
+                attr = recordInfo;
+                attrFound = true;
                 break;
             }
         }
+        assert(true == attrFound);
+
+        int attrlen = attr.length;
+        if (TypeVarChar == attr.type) {
+            attrlen += VARCHAR_ATTR_LEN_SZ;
+        }
+
+        data = malloc(1 /* null flag */ + attrlen);
+        memset(data, 0, attrlen);
 
         assert(data != nullptr);
 
@@ -531,7 +583,13 @@ namespace PeterDB {
             return false;
         }
 
-        bool comparisonResult = getComparisonResult(condAttrType, m_compOp, data, m_value);
+        bool comparisonResult = false;
+
+        bool isNull = (0 != *(static_cast<unsigned char*>(data)));
+        if (!isNull) {
+            comparisonResult = getComparisonResult(attr.type, m_compOp, (void*)((char*)data + 1), m_value);
+        }
+
         free(data);
         return comparisonResult;
     }

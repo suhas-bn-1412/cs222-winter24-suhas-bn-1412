@@ -9,6 +9,14 @@
 #define VARCHAR_ATTR_LEN_SZ 4
 
 namespace PeterDB {
+
+    struct ProjectedAttrInfo {
+        Attribute attrInfo;
+        uint16_t attrStart;
+        uint16_t attrEnd;
+        bool isNull;
+    };
+
     class RecordTransformer {
         public:
         static uint32_t serialize(const std::vector<Attribute> &recordDescriptor,

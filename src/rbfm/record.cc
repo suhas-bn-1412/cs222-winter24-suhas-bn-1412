@@ -63,7 +63,10 @@ void PeterDB::RecordAndMetadata::write(void *writeBuffer) {
 }
 
 PeterDB::RecordAndMetadata::~RecordAndMetadata() {
-    free(m_recordData);
+    if (m_recordData) {
+        free(m_recordData);
+    }
+    m_recordData = nullptr;
 }
 
 unsigned short PeterDB::RecordAndMetadata::getSlotNumber() const {

@@ -70,7 +70,7 @@ namespace PeterDB {
         // "data" follows the same format as RecordBasedFileManager::insertRecord().
         RC getNextRecord(RID &rid, void *data);
 
-        RC close() { return -1; };
+        RC close();
 
         void init(RecordBasedFileManager *rbfm, FileHandle *fileHandle,
              const std::vector<Attribute> &recordDescriptor, const std::string &conditionAttribute,
@@ -91,7 +91,7 @@ namespace PeterDB {
         std::vector<Attribute> m_recodrdDescriptor;
         std::string m_conditionAttribute;
         CompOp m_compOp;
-        const void *m_value = nullptr;
+        void *m_value = nullptr;
         std::vector<std::string> m_attributeNames;
 
         bool pickNextValidRID();
@@ -182,6 +182,7 @@ namespace PeterDB {
     private:
         Page m_page;
         std::map<std::string, PageSelector*> m_pageSelectors;
+        std::map<std::string, int> m_fileOpenRefCount;
         PagedFileManager *m_pagedFileManager = nullptr;
 
         unsigned computePageNumForInsertion(unsigned recordLength, FileHandle &fileHandle);

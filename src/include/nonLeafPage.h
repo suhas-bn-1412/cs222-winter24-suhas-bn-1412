@@ -46,7 +46,7 @@ namespace PeterDB {
     class NonLeafPage {
     private:
         std::vector<PageNumAndKey> _pageNumAndKeys;
-        Attribute _keyType;
+        AttrType _keyType;
         unsigned int _nextPageNum = 0;
         unsigned int _freeByteCount = 0;
 
@@ -59,7 +59,7 @@ namespace PeterDB {
 
         std::vector<PageNumAndKey>& getPageNumAndKeys();
 
-        const Attribute &getKeyType() const;
+        const AttrType getKeyType() const;
 
         /*
          * returns -1 to indicate that this is the last Node
@@ -79,7 +79,7 @@ namespace PeterDB {
         */
         void setFreeByteCount(unsigned int freeByteCount);
 
-        void setKeyType(Attribute keyType);
+        void setKeyType(AttrType keyType);
 
         /*
          * Compare the given keys

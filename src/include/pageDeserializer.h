@@ -16,7 +16,7 @@ namespace PeterDB {
 
         static unsigned int readFreeByteCount(const void *data);
 
-        static Attribute readKeyType(const void *data);
+        static AttrType readKeyType(const void *data);
 
         static int readNextPageNum(const void *data);
 

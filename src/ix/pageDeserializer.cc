@@ -26,7 +26,7 @@ namespace PeterDB {
         assert(PageDeserializer::isLeafPage(data));
 
         leafPage.setFreeByteCount(readFreeByteCount(data));
-        Attribute keyType = readKeyType(data);
+        AttrType keyType = readKeyType(data);
         leafPage.setKeyType(keyType);
         leafPage.setNextPageNum(readNextPageNum(data));
 
@@ -43,13 +43,14 @@ namespace PeterDB {
         return freeByteCount;
     }
 
-    Attribute PageDeserializer::readKeyType(const void *data) {
-        Attribute keyType;
+    AttrType PageDeserializer::readKeyType(const void *data) {
+        int keyType;
         byte *readPtr = (byte *) data + PageSerDesConstants::KEY_TYPE_OFFSET;
         memcpy((void *) &keyType,
                (void *) readPtr,
                PageSerDesConstants::KEY_TYPE_VAR_SIZE);
-        return keyType;
+        assert(0 <= keyType && keyType <= 2);
+        return static_cast<AttrType>(keyType);
     }
 
     int PageDeserializer::readNextPageNum(const void *data) {
@@ -82,10 +83,10 @@ namespace PeterDB {
             readPtr += pageNumSize;
 
             // read key from file
-            const Attribute &keyAttribute = nonLeafPage.getKeyType();
-            switch (keyAttribute.type) {
+            const AttrType keyAttribute = nonLeafPage.getKeyType();
+            switch (keyAttribute) {
                 case TypeInt: {
-                    const size_t keySize = sizeof(keyAttribute.length);
+                    const size_t keySize = 4;
                     int key;
                     memcpy((void *) &key, (void *) readPtr, keySize);
                     readPtr += keySize;
@@ -96,7 +97,7 @@ namespace PeterDB {
                 }
 
                 case TypeReal: {
-                    const size_t keySize = sizeof(keyAttribute.length);
+                    const size_t keySize = 4;
                     float key;
                     memcpy((void *) &key, (void *) readPtr, keySize);
                     readPtr += keySize;
@@ -127,10 +128,10 @@ namespace PeterDB {
             readPtr += ridSize;
 
             // read key to file
-            const Attribute &keyAttributeType = leafPage.getKeyType();
-            switch (keyAttributeType.type) {
+            const AttrType keyAttributeType = leafPage.getKeyType();
+            switch (keyAttributeType) {
                 case TypeInt: {
-                    const size_t keySize = sizeof(keyAttributeType.length);
+                    const size_t keySize = 4;
                     int key;
                     memcpy((void *) &key, (void *) readPtr, keySize);
                     readPtr += keySize;
@@ -141,7 +142,7 @@ namespace PeterDB {
                 }
 
                 case TypeReal: {
-                    const size_t keySize = sizeof(keyAttributeType.length);
+                    const size_t keySize = 4;
                     float key;
                     memcpy((void *) &key, (void *) readPtr, keySize);
                     readPtr += keySize;

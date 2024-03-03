@@ -96,7 +96,7 @@ namespace PeterDB {
         return _pageNumAndKeys;
     }
 
-    const Attribute & NonLeafPage::getKeyType() const {
+    const AttrType NonLeafPage::getKeyType() const {
         return _keyType;
     }
 
@@ -123,8 +123,8 @@ namespace PeterDB {
         NonLeafPage::_freeByteCount = freeByteCount;
     }
 
-    void NonLeafPage::setKeyType(const Attribute keyType) {
-        NonLeafPage::_keyType = keyType;
+    void NonLeafPage::setKeyType(const AttrType keyType) {
+        _keyType = keyType;
     }
 
     /*
@@ -134,7 +134,7 @@ namespace PeterDB {
      * returns 1 if first is greater than second
      */
     int NonLeafPage::compare(const PageNumAndKey& first, const PageNumAndKey& second) {
-        switch (_keyType.type) {
+        switch (_keyType) {
             case TypeInt:
                 return genericCompare(first.getIntKey(), second.getIntKey());
             case TypeReal:
@@ -149,7 +149,7 @@ namespace PeterDB {
 
     int NonLeafPage::comparePageNumAndKeyAndRidAndKey(const PageNumAndKey& first,
                                                       const RidAndKey& second) {
-        switch (_keyType.type) {
+        switch (_keyType) {
             case TypeInt:
                 return genericCompare(first.getIntKey(), second.getIntKey());
             case TypeReal:
@@ -178,10 +178,10 @@ namespace PeterDB {
 
     bool NonLeafPage::getRequiredSpace(const PageNumAndKey& entry) {
         auto reqSpace = sizeof(entry.getPageNum());
-        switch (_keyType.type) {
+        switch (_keyType) {
             case TypeInt:
             case TypeReal:
-                reqSpace += _keyType.length;
+                reqSpace += 4;
                 break;
             case TypeVarChar:
                 reqSpace += entry.getStringKey().size() + 4;

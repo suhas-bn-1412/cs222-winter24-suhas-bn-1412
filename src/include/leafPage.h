@@ -34,7 +34,7 @@ namespace PeterDB {
     class LeafPage {
     private:
         std::vector<RidAndKey> _ridAndKeyPairs;
-        Attribute _keyType;
+        AttrType _keyType;
         int _nextPageNum = -1;
         unsigned int _freeByteCount = 0;
 
@@ -46,7 +46,7 @@ namespace PeterDB {
 
         std::vector<RidAndKey>& getRidAndKeyPairs();
 
-        const Attribute &getKeyType() const;
+        const AttrType getKeyType() const;
 
         /*
          * returns -1 to indicate that this is the last Node
@@ -66,7 +66,7 @@ namespace PeterDB {
          */
         void setFreeByteCount(const unsigned int freeByteCount);
 
-        void setKeyType(const Attribute keyType);
+        void setKeyType(const AttrType keyType);
 
         /*
          * Compare the given keys

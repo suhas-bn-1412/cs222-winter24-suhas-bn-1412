@@ -62,6 +62,8 @@ namespace PeterDB {
         // Print the B+ tree in pre-order (in a JSON record format)
         RC printBTree(IXFileHandle &ixFileHandle, const Attribute &attribute, std::ostream &out) const;
 
+        RC printHelper(IXFileHandle &ixFileHandle, const Attribute &attribute, std::ostream &out) const;
+
         RC insertHelper(IXFileHandle& fileHandle, PageNum node, const RidAndKey& entry, PageNumAndKey& newChild);
 
         template<typename T>

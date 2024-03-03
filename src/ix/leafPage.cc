@@ -59,7 +59,7 @@ namespace PeterDB {
         return _ridAndKeyPairs;
     }
 
-    const Attribute &LeafPage::getKeyType() const {
+    const AttrType LeafPage::getKeyType() const {
         return _keyType;
     }
 
@@ -86,10 +86,8 @@ namespace PeterDB {
         LeafPage::_freeByteCount = freeByteCount;
     }
 
-    void LeafPage::setKeyType(const Attribute keyType) {
-        _keyType.name = keyType.name;
-        _keyType.type = keyType.type;
-        _keyType.length = keyType.length;
+    void LeafPage::setKeyType(const AttrType keyType) {
+        _keyType = keyType;
     }
 
     /*
@@ -99,7 +97,7 @@ namespace PeterDB {
      * returns 1 if first is greater than second
      */
     int LeafPage::compare(const RidAndKey& first, const RidAndKey& second) {
-        switch (_keyType.type) {
+        switch (_keyType) {
             case TypeInt:
                 return genericCompare(first.getIntKey(), second.getIntKey());
             case TypeReal:
@@ -114,10 +112,10 @@ namespace PeterDB {
 
     bool LeafPage::getRequiredSpace(const RidAndKey& entry) {
         auto reqSpace = sizeof(RID);
-        switch (_keyType.type) {
+        switch (_keyType) {
             case TypeInt:
             case TypeReal:
-                reqSpace += _keyType.length;
+                reqSpace += 4;
                 break;
             case TypeVarChar:
                 reqSpace += entry.getStringKey().size() + 4;

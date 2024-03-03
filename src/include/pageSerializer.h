@@ -15,7 +15,7 @@ namespace PeterDB {
 
         static void writeFreeByteCount(const unsigned int freeByteCount, const void *data);
 
-        static void writeKeyType(const Attribute &keyAttribute, const void *data);
+        static void writeKeyType(int keyType, const void *data);
 
         static void writeIsLeafPage(const bool isLeafPage, void *data);
 

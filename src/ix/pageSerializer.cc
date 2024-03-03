@@ -39,10 +39,10 @@ namespace PeterDB {
                PageSerDesConstants::IS_LEAF_PAGE_VAR_SIZE);
     }
 
-    void PageSerializer::writeKeyType(const Attribute &keyAttribute, const void *data) {
+    void PageSerializer::writeKeyType(int keyType, const void *data) {
         byte *writePtr = (byte *) data + PageSerDesConstants::KEY_TYPE_OFFSET;
         memcpy((void *) writePtr,
-               (void *) &keyAttribute,
+               (void *) &keyType,
                PageSerDesConstants::KEY_TYPE_VAR_SIZE);
     }
 
@@ -71,9 +71,9 @@ namespace PeterDB {
             writePtr += pageNumSize;
 
             // write key to file
-            switch (nonLeafPage.getKeyType().type) {
+            switch (nonLeafPage.getKeyType()) {
                 case TypeInt: {
-                    const size_t keySize = sizeof(nonLeafPage.getKeyType().length);
+                    const size_t keySize = 4;
                     const int key = pageNumAndKey.getIntKey();
                     memcpy((void *) writePtr, (void *) &key, keySize);
                     writePtr += keySize;
@@ -81,7 +81,7 @@ namespace PeterDB {
                 }
 
                 case TypeReal: {
-                    const size_t keySize = sizeof(nonLeafPage.getKeyType().length);
+                    const size_t keySize = 4;
                     const float key = pageNumAndKey.getFloatKey();
                     memcpy((void *) writePtr, (void *) &key, keySize);
                     writePtr += keySize;
@@ -108,16 +108,16 @@ namespace PeterDB {
             writePtr += ridSize;
 
             // write key to file
-            switch (leafPage.getKeyType().type) {
+            switch (leafPage.getKeyType()) {
                 case TypeInt: {
-                    const size_t keySize = sizeof(leafPage.getKeyType().length);
+                    const size_t keySize = 4;
                     const int key = ridAndKeyPair.getIntKey();
                     memcpy((void *) writePtr, (void *) &key, keySize);
                     writePtr += keySize;
                     break;
                 }
                 case TypeReal: {
-                    const size_t keySize = sizeof(leafPage.getKeyType().length);
+                    const size_t keySize = 4;
                     const float key = ridAndKeyPair.getFloatKey();
                     memcpy((void *) writePtr, (void *) &key, keySize);
                     writePtr += keySize;

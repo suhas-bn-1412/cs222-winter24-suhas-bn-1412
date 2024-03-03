@@ -76,7 +76,7 @@ namespace PeterDB {
             // that to the disk. when first root node is created it will be
             // a LeafPage
             LeafPage leafPage;
-            leafPage.setKeyType(attribute);
+            leafPage.setKeyType(attribute.type);
 
             auto newPageNum = ixFileHandle._pfmFileHandle.getNextPageNum();
             assert(0 == writePageToDisk(ixFileHandle, leafPage, -1 /* create page and insert */));
@@ -102,7 +102,7 @@ namespace PeterDB {
             // to this insert first element as old pagenum, key from newChild
             // insert second element as new pageNum and dummy key
             NonLeafPage newRoot;
-            newRoot.setKeyType(attribute);
+            newRoot.setKeyType(attribute.type);
 
             PageNumAndKey entry1;
             PageNumAndKey entry2;
@@ -190,6 +190,10 @@ namespace PeterDB {
     }
 
     RC IndexManager::printBTree(IXFileHandle &ixFileHandle, const Attribute &attribute, std::ostream &out) const {
+        return 0;
+    }
+
+    RC IndexManager::printHelper(IXFileHandle &ixFileHandle, const Attribute &attribute, std::ostream &out) const {
         return 0;
     }
 
@@ -446,7 +450,7 @@ namespace PeterDB {
         // set as guide node's pageNum by the caller
         RidAndKey guideNodeData = vector2.front();
         
-        switch (page2.getKeyType().type) {
+        switch (page2.getKeyType()) {
             case TypeInt:
                 return PageNumAndKey(0, guideNodeData.getIntKey());
             case TypeReal:
@@ -490,7 +494,7 @@ namespace PeterDB {
         page2.resetMetadata();
         
         // we dont know the new page number, the caller should set that
-        switch (page2.getKeyType().type) {
+        switch (page2.getKeyType()) {
             case TypeInt:
                 return PageNumAndKey(0, guideNodeData.getIntKey());
             case TypeReal:

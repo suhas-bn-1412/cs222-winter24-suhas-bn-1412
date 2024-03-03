@@ -76,11 +76,7 @@ namespace PeterDB {
         static int keyCompare(const void *searchKey, const RID searchRid, const Attribute searchKeyType, const RidAndKey ridAndKeyPair);
 
     protected:
-        IndexManager() = default;                                                   // Prevent construction
-        ~IndexManager() = default;                                                  // Prevent unwanted destruction
-        IndexManager(const IndexManager &) = default;                               // Prevent construction by copying
-        IndexManager &operator=(const IndexManager &) = default;                    // Prevent assignment
-        RC insertHelper(IXFileHandle& fileHandle, PageNum node, const RidAndKey& entry, PageNumAndKey& newChild);
+       RC insertHelper(IXFileHandle& fileHandle, PageNum node, const RidAndKey& entry, PageNumAndKey& newChild);
 
         template<typename T>
         RC writePageToDisk(IXFileHandle& fileHandle, T& page, int pageNum);

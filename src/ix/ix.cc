@@ -148,17 +148,13 @@ namespace PeterDB {
         //todo:
         // 1) get root pageNum and load the root page
         pageNum = 1;
-        ixFileHandle._pfmFileHandle.readPage((unsigned) pageNum, pageData);
+        loadPage(pageNum, pageData, ixFileHandle);
 
         // 2) recursively search for the leaf node that should contain the given (key, rid)
         while (!PageDeserializer::isLeafPage(pageData)) {
-            NonLeafPage nonLeafPage;
-            PageDeserializer::toNonLeafPage(pageData, nonLeafPage);
-
             // traverse down a level of the B+ index tree
-            pageNum = getLowerLevelNode(key, attribute, nonLeafPage);
-
-            ixFileHandle._pfmFileHandle.readPage((unsigned) pageNum, pageData);
+            pageNum = getLowerLevelNode(key, attribute, pageNum);
+            loadPage(pageNum, pageData, ixFileHandle);
         }
 
         // 3) delete the (key, rid) entry from the leaf page, if it exists
@@ -170,13 +166,23 @@ namespace PeterDB {
             unsigned int oldFreeByteCount = leafPage.getFreeByteCount();
             unsigned int newFreeByteCount = oldFreeByteCount - getKeySize(key, attribute);
             leafPage.setFreeByteCount(newFreeByteCount);
-            
+
             // 4) serialize and write-through the page back back to file to effect the delete operation
             PageSerializer::toBytes(leafPage, pageData);
-            ixFileHandle._pfmFileHandle.writePage(pageNum, pageData);
+            writePage(pageData, pageNum, ixFileHandle);
         }
         free(pageData);
         return rc;
+    }
+
+    void IndexManager::writePage(const void *pageData, unsigned int pageNum,
+                                 IXFileHandle &ixFileHandle) const {
+        ixFileHandle._pfmFileHandle.writePage(pageNum, pageData);
+    }
+
+    void IndexManager::loadPage(unsigned int pageNum, void *pageData,
+                                IXFileHandle &ixFileHandle) const {
+        ixFileHandle._pfmFileHandle.readPage((unsigned) pageNum, pageData);
     }
 
     RC IndexManager::scan(IXFileHandle &ixFileHandle,
@@ -186,7 +192,30 @@ namespace PeterDB {
                           bool lowKeyInclusive,
                           bool highKeyInclusive,
                           IX_ScanIterator &ix_ScanIterator) {
-        return -1;
+        //todo: verify IXFileHandle is active (perhaps Suhas has done this func. already; wait)
+
+        void *pageData = malloc(
+                PAGE_SIZE); //todo: migrate to class member, perhaps Suhas has done this already, so wait for his commits
+        unsigned int pageNum;
+
+        //todo:
+        // 1) get root pageNum and load the root page
+        pageNum = 1;
+        loadPage(pageNum, pageData, ixFileHandle);
+
+        // 2) recursively search for the leaf node that should contain the given lowKey
+        // if the lowKey is null, simply traverse to the leftmost leafPage
+        while (!PageDeserializer::isLeafPage(pageData)) {
+            pageNum = getLowerLevelNode(lowKey, attribute, pageNum);
+            loadPage(pageNum, pageData, ixFileHandle);
+        }
+
+        ix_ScanIterator.init(&ixFileHandle, pageNum,
+                             lowKey, lowKeyInclusive,
+                             highKey, highKeyInclusive,
+                             attribute);
+        free(pageData);
+        return 0;
     }
 
     RC IndexManager::printBTree(IXFileHandle &ixFileHandle, const Attribute &attribute, std::ostream &out) const {
@@ -197,10 +226,23 @@ namespace PeterDB {
         return 0;
     }
 
-    unsigned int IndexManager::getLowerLevelNode(const void *searchKey, const Attribute &attribute, NonLeafPage &nonLeafPage) {
+    unsigned int
+    IndexManager::getLowerLevelNode(const void *searchKey, const Attribute &attribute, unsigned int pageNum) {
+        void *pageData = malloc(
+                PAGE_SIZE); //todo: migrate to class member
+        NonLeafPage nonLeafPage;
+        PageDeserializer::toNonLeafPage(pageData, nonLeafPage);
+
         std::vector<PageNumAndKey> &pageNumAndKeyPairs = nonLeafPage.getPageNumAndKeys();
-        for (const auto& pageNumAndKey: pageNumAndKeyPairs) {
+        if (searchKey == nullptr) {
+            // scenario used by scan() (searchKey = null implies traverse to the leftmost leafNode
+            free(pageData); // todo: remove post migration
+            return pageNumAndKeyPairs.begin()->getPageNum();
+        }
+
+        for (const auto &pageNumAndKey: pageNumAndKeyPairs) {
             if (keyCompare(searchKey, attribute, pageNumAndKey) > 0 || &pageNumAndKey == &pageNumAndKeyPairs.back()) {
+                free(pageData); //todo: remove post migration
                 return pageNumAndKey.getPageNum();
             }
         }
@@ -227,11 +269,12 @@ namespace PeterDB {
      * < 0 : 'searchKey' < pageNumAndKeyPair.get___Key()
      * > 0 : 'searchKey' > pageNumAndKeyPair.get___Key()
      */
-    int IndexManager::keyCompare(const void *searchKey, const Attribute &searchKeyType, const PageNumAndKey &pageNumAndKeyPair) {
+    int IndexManager::keyCompare(const void *searchKey, const Attribute &searchKeyType,
+                                 const PageNumAndKey &pageNumAndKeyPair) {
         switch (searchKeyType.type) {
             case TypeInt: {
                 int keyA;
-                memcpy((void*) &keyA, searchKey, sizeof(keyA));
+                memcpy((void *) &keyA, searchKey, sizeof(keyA));
                 int keyB = pageNumAndKeyPair.getIntKey();
                 if (keyA == keyB) {
                     return 0;
@@ -244,7 +287,7 @@ namespace PeterDB {
 
             case TypeReal: {
                 float keyA;
-                memcpy((void*) &keyA, searchKey, sizeof(keyA));
+                memcpy((void *) &keyA, searchKey, sizeof(keyA));
                 float keyB = pageNumAndKeyPair.getFloatKey();
                 if (keyA == keyB) {
                     return 0;
@@ -270,18 +313,19 @@ namespace PeterDB {
     * Compares a search key with RidAndKey (handling all types)
     * Return value:
     * 0   : both the keys are equal
-    * < 0 : 'searchKey' < pageNumAndKeyPair.get___Key()
-    * > 0 : 'searchKey' > pageNumAndKeyPair.get___Key()
+    * < 0 : 'searchKey' < ridAndKeyPair.get___Key()
+    * > 0 : 'searchKey' > ridAndKeyPair.get___Key()
     */
     int IndexManager::keyCompare(const void *searchKey, const RID searchRid, const Attribute searchKeyType, const RidAndKey ridAndKeyPair) {
         switch (searchKeyType.type) {
             case TypeInt: {
                 int keyA;
-                memcpy((void*) &keyA, searchKey, sizeof(keyA));
+                memcpy((void *) &keyA, searchKey, sizeof(keyA));
                 const int keyB = ridAndKeyPair.getIntKey();
                 RID ridB = ridAndKeyPair.getRid();
                 if (keyA == keyB) {
-                    return searchRid.pageNum == ridB.pageNum && searchRid.slotNum == ridB.slotNum;
+                    return 0;
+//                    return searchRid.pageNum == ridB.pageNum && searchRid.slotNum == ridB.slotNum;
                 } else if (keyA < keyB) {
                     return -1;
                 } else {
@@ -291,7 +335,7 @@ namespace PeterDB {
 
             case TypeReal: {
                 float keyA;
-                memcpy((void*) &keyA, searchKey, sizeof(keyA));
+                memcpy((void *) &keyA, searchKey, sizeof(keyA));
                 float keyB = ridAndKeyPair.getFloatKey();
                 RID ridB = ridAndKeyPair.getRid();
                 if (keyA == keyB) {
@@ -331,32 +375,160 @@ namespace PeterDB {
     }
 
     IX_ScanIterator::IX_ScanIterator() {
+        _pageData = malloc(PAGE_SIZE);
     }
 
     IX_ScanIterator::~IX_ScanIterator() {
+        assert(_pageData != nullptr);
+        free(_pageData);
     }
 
     RC IX_ScanIterator::getNextEntry(RID &rid, void *key) {
-        return -1;
+        // while at the end of current page
+        while (atEndOfCurrentPage()) {
+            // if more pages exist
+            int nextPageNum = getNextLeafPage();
+            if (nextPageNum != -1) {
+                // load the next page
+                loadLeafPage(nextPageNum);
+            } else {
+                // else return IX EOF
+                return IX_EOF;
+            }
+        }
+
+        // if the next record is within the endKey
+        const RidAndKey &nextRidAndKey = _currentLeafPage.getRidAndKeyPairs().at(_nextElementPositionOnPage);
+        if (isWithinRange(nextRidAndKey, _endKey, _keyAttribute, _shouldIncludeEndKey)) {
+            // return the next record
+            copy(rid, key, nextRidAndKey, _keyAttribute);
+        } else {
+            // else return IX EOF
+            return IX_EOF;
+        }
+
+        assert(1);
     }
 
-    RC IX_ScanIterator::close() {
-        return -1;
+RC IX_ScanIterator::close() {
+    return -1;
+}
+
+void IX_ScanIterator::loadLeafPage(PageNum pageNum) {
+    _ixFileHandle->_pfmFileHandle.readPage(pageNum, _pageData);
+    assert(PageDeserializer::isLeafPage(_pageData));
+    PageDeserializer::toLeafPage(_pageData, _currentLeafPage);
+    _nextElementPositionOnPage = 0;
+}
+
+void
+IX_ScanIterator::init(IXFileHandle *ixFileHandle, unsigned int pageNumBegin,
+                      const void* startKey, const bool shouldIncludeStartKey,
+                      const void *endKey, const bool shouldIncludeEndKey,
+                      const Attribute &keyAttribute) {
+    _ixFileHandle = ixFileHandle;
+    _shouldIncludeEndKey = shouldIncludeEndKey;
+    _keyAttribute = keyAttribute;
+    copyEndKey(endKey, keyAttribute);
+
+    loadLeafPage(pageNumBegin);
+    _nextElementPositionOnPage = getIndex(_currentLeafPage, startKey, shouldIncludeStartKey, keyAttribute);
+}
+
+void IX_ScanIterator::copyEndKey(const void *endKey, const Attribute &keyAttribute) {
+    unsigned int endKeySize = IndexManager::getKeySize(endKey, keyAttribute);
+    _endKey = malloc(endKeySize);
+    memcpy(_endKey, endKey, endKeySize);
+}
+
+    int IX_ScanIterator::getNextLeafPage() {
+        return _currentLeafPage.getNextPageNum();
+    }
+
+    bool IX_ScanIterator::atEndOfCurrentPage() {
+        const unsigned int numKeysInCurrentPage = _currentLeafPage.getRidAndKeyPairs().size();
+        return _nextElementPositionOnPage == numKeysInCurrentPage;
+    }
+
+    bool IX_ScanIterator::isWithinRange(const RidAndKey &candidateRidAndKey, void *endKey, Attribute keyAttribute,
+                                        bool includeEndKey) {
+        void *candidateKey = malloc(keyAttribute.length);
+        switch (keyAttribute.type) {
+            case TypeInt: {
+                int candidateKeyCopy = candidateRidAndKey.getIntKey();
+                memcpy(&candidateKey, &candidateKeyCopy, sizeof(candidateKeyCopy));
+            }
+                break;
+            case TypeReal: {
+                float candidateKeyCopy = candidateRidAndKey.getFloatKey();
+                memcpy(&candidateKey, &candidateKeyCopy, sizeof(candidateKeyCopy));
+            }
+                break;
+            case TypeVarChar:
+                //fixme
+                break;
+        }
+
+        //fixme
+        return true;
+//        int comparisionResult = IndexManager::keyCompare(candidateKey, candidateRidAndKey.getRid(), keyAttribute,
+//                                                         candidateRidAndKey);
+//        if (comparisionResult == 0 && shouldIncludeSearchKey) {
+//            return index;
+//        } else if (comparisionResult > 0) {
+//            return index;
+//        }
+    }
+
+    void IX_ScanIterator::copy(RID &destRid, void *destKey, const RidAndKey &srcRidAndKey, Attribute keyAttribute) {
+        destRid.pageNum = srcRidAndKey.getRid().pageNum;
+        destRid.slotNum = srcRidAndKey.getRid().slotNum;
+        switch (keyAttribute.type) {
+            case TypeInt: {
+                int srcKey = srcRidAndKey.getIntKey();
+                memcpy(destKey, &srcKey, sizeof(srcKey));
+            }
+                break;
+            case TypeReal: {
+                float srcKey = srcRidAndKey.getFloatKey();
+                memcpy(destKey, &srcKey, sizeof(srcKey));
+            }
+                break;
+            case TypeVarChar:
+                //fixme
+                break;
+        }
+    }
+
+    unsigned int IX_ScanIterator::getIndex(LeafPage leafPage, const void *searchKey, const bool shouldIncludeSearchKey,
+                                           const Attribute &keyAttribute) {
+        for (int index = 0; index < leafPage.getRidAndKeyPairs().size(); ++index) {
+            const auto &ridAndKey = leafPage.getRidAndKeyPairs().at(index);
+
+            // pass in the same RID for both keys as an RID comparision is out of place
+            int comparisionResult = IndexManager::keyCompare(searchKey, ridAndKey.getRid(), keyAttribute, ridAndKey);
+            if (comparisionResult == 0 && shouldIncludeSearchKey) {
+                return index;
+            } else if (comparisionResult > 0) {
+                return index;
+            }
+        }
+        assert(1);
     }
 
     IXFileHandle::IXFileHandle() {
-        ixReadPageCounter = 0;
-        ixWritePageCounter = 0;
-        ixAppendPageCounter = 0;
-    }
+    ixReadPageCounter = 0;
+    ixWritePageCounter = 0;
+    ixAppendPageCounter = 0;
+}
 
-    IXFileHandle::~IXFileHandle() {
-    }
+IXFileHandle::~IXFileHandle() {
+}
 
-    RC
-    IXFileHandle::collectCounterValues(unsigned &readPageCount, unsigned &writePageCount, unsigned &appendPageCount) {
-        return _pfmFileHandle.collectCounterValues(readPageCount, writePageCount, appendPageCount);
-    }
+RC
+IXFileHandle::collectCounterValues(unsigned &readPageCount, unsigned &writePageCount, unsigned &appendPageCount) {
+    return _pfmFileHandle.collectCounterValues(readPageCount, writePageCount, appendPageCount);
+}
 
     void IXFileHandle::fetchRootNodePtrFromDisk() {
         // read page 0 (page 0 is always the page in which we store the

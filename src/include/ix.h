@@ -64,6 +64,22 @@ namespace PeterDB {
 
         RC printHelper(IXFileHandle &ixFileHandle, const Attribute &attribute, std::ostream &out) const;
 
+        static unsigned int getKeySize(const void *key, const Attribute &attributeOfKey);
+
+        /*
+            * Compares a search key with RidAndKey (handling all types)
+            * Return value:
+            * 0   : both the keys are equal
+            * < 0 : 'searchKey' < pageNumAndKeyPair.get___Key()
+            * > 0 : 'searchKey' > pageNumAndKeyPair.get___Key()
+            */
+        static int keyCompare(const void *searchKey, const RID searchRid, const Attribute searchKeyType, const RidAndKey ridAndKeyPair);
+
+    protected:
+        IndexManager() = default;                                                   // Prevent construction
+        ~IndexManager() = default;                                                  // Prevent unwanted destruction
+        IndexManager(const IndexManager &) = default;                               // Prevent construction by copying
+        IndexManager &operator=(const IndexManager &) = default;                    // Prevent assignment
         RC insertHelper(IXFileHandle& fileHandle, PageNum node, const RidAndKey& entry, PageNumAndKey& newChild);
 
         template<typename T>
@@ -71,7 +87,7 @@ namespace PeterDB {
 
     private:
 
-        static unsigned int getLowerLevelNode(const void *searchKey, const Attribute &attribute, NonLeafPage &pageData);
+        static unsigned int getLowerLevelNode(const void *searchKey, const Attribute &attribute, unsigned int pageNum);
 
         static RC deleteFromPage(const void *targetKey, const RID &targetRid, const Attribute &targetKeyAttribute, PeterDB::LeafPage &leafPage);
 
@@ -84,16 +100,9 @@ namespace PeterDB {
          */
         static int keyCompare(const void *searchKey, const Attribute &searchKeyType, const PageNumAndKey &pageNumAndKeyPair);
 
-        /*
-        * Compares a search key with RidAndKey (handling all types)
-        * Return value:
-        * 0   : both the keys are equal
-        * < 0 : 'searchKey' < pageNumAndKeyPair.get___Key()
-        * > 0 : 'searchKey' > pageNumAndKeyPair.get___Key()
-        */
-        static int keyCompare(const void *searchKey, const RID searchRid, const Attribute searchKeyType, const RidAndKey ridAndKeyPair);
+        void loadPage(unsigned int pageNum, void *pageData, IXFileHandle &ixFileHandle) const;
 
-        unsigned int getKeySize(const void *key, const Attribute &attributeOfKey);
+        void writePage(const void *pageData, unsigned int pageNum, IXFileHandle &ixFileHandle) const;
     };
 
     class IX_ScanIterator {
@@ -108,8 +117,39 @@ namespace PeterDB {
         // Get next matching entry
         RC getNextEntry(RID &rid, void *key);
 
+        void init(IXFileHandle *ixFileHandle, unsigned int pageNumBegin,
+                  const void* startKey, const bool shouldIncludeStartKey,
+                  const void *endKey, bool shouldIncludeEndKey, const Attribute& keyAttribute);
+
+        void loadLeafPage(PageNum pageNum);
+
         // Terminate index scan
         RC close();
+
+    private:
+        IXFileHandle *_ixFileHandle = nullptr;
+        void *_pageData;
+        LeafPage _currentLeafPage;
+        unsigned int _nextElementPositionOnPage; //todo: perhaps special handling for scan-delete keys
+        // maybe store 'leafPageKeysSize' and check each time for decrease, implying delete
+        // or store current/ nextRid
+        void * _endKey;
+        Attribute _keyAttribute;
+        bool _shouldIncludeEndKey;
+
+        void copyEndKey(const void *endKey, const Attribute &keyAttribute);
+
+        int getNextLeafPage();
+
+        bool atEndOfCurrentPage();
+
+        static bool isWithinRange(const RidAndKey &candidateRidAndKey, void *endKey, Attribute keyAttribute, bool includeEndKey);
+
+        void copy(RID &destRid, void *destKey, const RidAndKey &srcRidAndKey, Attribute keyAttribute);
+
+        unsigned int
+        getIndex(LeafPage leafPage, const void *searchKey, const bool shouldIncludeSearchKey,
+                 const Attribute &keyAttribute);
     };
 
     class IXFileHandle {

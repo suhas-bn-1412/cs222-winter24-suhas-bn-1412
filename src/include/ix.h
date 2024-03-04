@@ -141,7 +141,7 @@ namespace PeterDB {
 
         bool atEndOfCurrentPage();
 
-        static bool isWithinRange(const RidAndKey &candidateRidAndKey);
+        bool isWithinRange(const RidAndKey &candidateRidAndKey);
 
         void copy(RID &destRid, void *destKey, const RidAndKey &srcRidAndKey);
 

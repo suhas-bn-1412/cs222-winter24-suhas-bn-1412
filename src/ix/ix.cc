@@ -468,32 +468,17 @@ namespace PeterDB {
     }
 
     bool IX_ScanIterator::isWithinRange(const RidAndKey &candidateRidAndKey) {
-//        void *candidateKey = malloc(keyType.length);
-//        switch (keyType.type) {
-//            case TypeInt: {
-//                int candidateKeyCopy = candidateRidAndKey.getIntKey();
-//                memcpy(&candidateKey, &candidateKeyCopy, sizeof(candidateKeyCopy));
-//            }
-//                break;
-//            case TypeReal: {
-//                float candidateKeyCopy = candidateRidAndKey.getFloatKey();
-//                memcpy(&candidateKey, &candidateKeyCopy, sizeof(candidateKeyCopy));
-//            }
-//                break;
-//            case TypeVarChar:
-//                //fixme
-//                break;
-//        }
+        if (_endKey == nullptr) {
+            return true;
+        }
 
-        //fixme
-        return true;
-//        int comparisionResult = IndexManager::keyCompare(candidateKey, candidateRidAndKey.getRid(), keyType,
-//                                                         candidateRidAndKey);
-//        if (comparisionResult == 0 && shouldIncludeSearchKey) {
-//            return index;
-//        } else if (comparisionResult > 0) {
-//            return index;
-//        }
+        int comparisionResult = IndexManager::keyCompare(_endKey, candidateRidAndKey.getRid(), _keyType,
+                                                         candidateRidAndKey);
+        if (comparisionResult == 0 && _shouldIncludeEndKey) {
+            return true;
+        } else {
+            return comparisionResult < 0;
+        }
     }
 
     void IX_ScanIterator::copy(RID &destRid, void *destKey, const RidAndKey &srcRidAndKey) {

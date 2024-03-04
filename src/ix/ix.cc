@@ -86,6 +86,7 @@ namespace PeterDB {
             assert(newPageNum == ixFileHandle._pfmFileHandle.getNextPageNum()-1);
 
             ixFileHandle._rootPagePtr = newPageNum;
+            ixFileHandle.writeRootNodePtrToDisk();
         }
 
         RidAndKey entryToInsert = createEntryToInsert(attribute, key, rid);
@@ -136,6 +137,7 @@ namespace PeterDB {
             assert(newRootPageNum == ixFileHandle._pfmFileHandle.getNextPageNum()-1);
 
             ixFileHandle._rootPagePtr = newRootPageNum;
+            ixFileHandle.writeRootNodePtrToDisk();
         }
         return 0;
     }
@@ -154,7 +156,7 @@ namespace PeterDB {
         // 2) recursively search for the leaf node that should contain the given (key, rid)
         while (!PageDeserializer::isLeafPage(pageData)) {
             // traverse down a level of the B+ index tree
-            pageNum = getLowerLevelNode(key, attribute, pageNum);
+            pageNum = getLowerLevelNode(key, attribute, pageData);
             loadPage(pageNum, pageData, ixFileHandle);
         }
 
@@ -207,7 +209,7 @@ namespace PeterDB {
         // 2) recursively search for the leaf node that should contain the given lowKey
         // if the lowKey is null, simply traverse to the leftmost leafPage
         while (!PageDeserializer::isLeafPage(pageData)) {
-            pageNum = getLowerLevelNode(lowKey, attribute, pageNum);
+            pageNum = getLowerLevelNode(lowKey, attribute, pageData);
             loadPage(pageNum, pageData, ixFileHandle);
         }
 
@@ -239,22 +241,18 @@ namespace PeterDB {
     }
 
     unsigned int
-    IndexManager::getLowerLevelNode(const void *searchKey, const Attribute &attribute, unsigned int pageNum) {
-        void *pageData = malloc(
-                PAGE_SIZE); //todo: migrate to class member
+    IndexManager::getLowerLevelNode(const void *searchKey, const Attribute &attribute, const void* pageData) {
         NonLeafPage nonLeafPage;
         PageDeserializer::toNonLeafPage(pageData, nonLeafPage);
 
         std::vector<PageNumAndKey> &pageNumAndKeyPairs = nonLeafPage.getPageNumAndKeys();
         if (searchKey == nullptr) {
             // scenario used by scan() (searchKey = null implies traverse to the leftmost leafNode
-            free(pageData); // todo: remove post migration
             return pageNumAndKeyPairs.begin()->getPageNum();
         }
 
         for (const auto &pageNumAndKey: pageNumAndKeyPairs) {
             if (keyCompare(searchKey, attribute.type, pageNumAndKey) > 0 || &pageNumAndKey == &pageNumAndKeyPairs.back()) {
-                free(pageData); //todo: remove post migration
                 return pageNumAndKey.getPageNum();
             }
         }
@@ -736,6 +734,7 @@ IXFileHandle::~IXFileHandle() {
             // create a new non-leaf page, set page num in newChild we return
             // split the page and write both the pages into disk
             NonLeafPage newNonLeafPage;
+            newNonLeafPage.setKeyType(nonLeafPage.getKeyType());
             PageNum newPageNum = fileHandle._pfmFileHandle.getNextPageNum();
             newChild = insertAndSplitNonLeafPages(nonLeafPage, newNonLeafPage, newChild);
             assert(0 == writePageToDisk(fileHandle, nonLeafPage, node));
@@ -753,11 +752,12 @@ IXFileHandle::~IXFileHandle() {
 
             // can't insert to this page, so split the page
             LeafPage newLeafPage;
+            newLeafPage.setKeyType(leafPage.getKeyType());
             PageNum newPageNum = fileHandle._pfmFileHandle.getNextPageNum();
             newChild = insertAndSplitLeafPages(leafPage, newLeafPage, entry);
+            leafPage.setNextPageNum(newPageNum);
             assert(0 == writePageToDisk(fileHandle, leafPage, node));
             assert(0 == writePageToDisk(fileHandle, newLeafPage, -1 /* create page and insert */));
-            leafPage.setNextPageNum(newPageNum);
             newChild.setPageNum(newPageNum);
             return 0;
         }

@@ -85,7 +85,7 @@ namespace PeterDB {
 
     private:
 
-        static unsigned int getLowerLevelNode(const void *searchKey, const Attribute &attribute, unsigned int pageNum);
+        static unsigned int getLowerLevelNode(const void *searchKey, const Attribute &attribute, const void* pageData);
 
         static RC deleteFromPage(const void *targetKey, const RID &targetRid, const Attribute &targetKeyAttribute, PeterDB::LeafPage &leafPage);
 

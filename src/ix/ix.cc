@@ -145,9 +145,7 @@ namespace PeterDB {
                 PAGE_SIZE); //todo: migrate to class member, perhaps Suhas has done this already, so wait for his commits
         unsigned int pageNum;
 
-        //todo:
-        // 1) get root pageNum and load the root page
-        pageNum = 1;
+        pageNum = ixFileHandle._rootPagePtr;
         loadPage(pageNum, pageData, ixFileHandle);
 
         // 2) recursively search for the leaf node that should contain the given (key, rid)
@@ -200,7 +198,7 @@ namespace PeterDB {
 
         //todo:
         // 1) get root pageNum and load the root page
-        pageNum = 1;
+        pageNum = ixFileHandle._rootPagePtr;
         loadPage(pageNum, pageData, ixFileHandle);
 
         // 2) recursively search for the leaf node that should contain the given lowKey
@@ -316,7 +314,8 @@ namespace PeterDB {
     * < 0 : 'searchKey' < ridAndKeyPair.get___Key()
     * > 0 : 'searchKey' > ridAndKeyPair.get___Key()
     */
-    int IndexManager::keyCompare(const void *searchKey, const RID searchRid, const Attribute searchKeyType, const RidAndKey ridAndKeyPair) {
+    int IndexManager::keyCompare(const void *searchKey, const RID searchRid, const Attribute searchKeyType,
+                                 const RidAndKey ridAndKeyPair) {
         switch (searchKeyType.type) {
             case TypeInt: {
                 int keyA;
@@ -410,36 +409,40 @@ namespace PeterDB {
         assert(1);
     }
 
-RC IX_ScanIterator::close() {
-    return -1;
-}
+    RC IX_ScanIterator::close() {
+        return 0;
+    }
 
-void IX_ScanIterator::loadLeafPage(PageNum pageNum) {
-    _ixFileHandle->_pfmFileHandle.readPage(pageNum, _pageData);
-    assert(PageDeserializer::isLeafPage(_pageData));
-    PageDeserializer::toLeafPage(_pageData, _currentLeafPage);
-    _nextElementPositionOnPage = 0;
-}
+    void IX_ScanIterator::loadLeafPage(PageNum pageNum) {
+        _ixFileHandle->_pfmFileHandle.readPage(pageNum, _pageData);
+        assert(PageDeserializer::isLeafPage(_pageData));
+        PageDeserializer::toLeafPage(_pageData, _currentLeafPage);
+        _nextElementPositionOnPage = 0;
+    }
 
-void
-IX_ScanIterator::init(IXFileHandle *ixFileHandle, unsigned int pageNumBegin,
-                      const void* startKey, const bool shouldIncludeStartKey,
-                      const void *endKey, const bool shouldIncludeEndKey,
-                      const Attribute &keyAttribute) {
-    _ixFileHandle = ixFileHandle;
-    _shouldIncludeEndKey = shouldIncludeEndKey;
-    _keyAttribute = keyAttribute;
-    copyEndKey(endKey, keyAttribute);
+    void
+    IX_ScanIterator::init(IXFileHandle *ixFileHandle, unsigned int pageNumBegin,
+                          const void *startKey, const bool shouldIncludeStartKey,
+                          const void *endKey, const bool shouldIncludeEndKey,
+                          const Attribute &keyAttribute) {
+        _ixFileHandle = ixFileHandle;
+        _shouldIncludeEndKey = shouldIncludeEndKey;
+        _keyAttribute = keyAttribute;
+        copyEndKey(endKey, keyAttribute);
 
-    loadLeafPage(pageNumBegin);
-    _nextElementPositionOnPage = getIndex(_currentLeafPage, startKey, shouldIncludeStartKey, keyAttribute);
-}
+        loadLeafPage(pageNumBegin);
+        _nextElementPositionOnPage = getIndex(_currentLeafPage, startKey, shouldIncludeStartKey, keyAttribute);
+    }
 
-void IX_ScanIterator::copyEndKey(const void *endKey, const Attribute &keyAttribute) {
-    unsigned int endKeySize = IndexManager::getKeySize(endKey, keyAttribute);
-    _endKey = malloc(endKeySize);
-    memcpy(_endKey, endKey, endKeySize);
-}
+    void IX_ScanIterator::copyEndKey(const void *endKey, const Attribute &keyAttribute) {
+        if (endKey == nullptr) {
+            _endKey = nullptr;
+        } else {
+            unsigned int endKeySize = IndexManager::getKeySize(endKey, keyAttribute);
+            _endKey = malloc(endKeySize);
+            memcpy(_endKey, endKey, endKeySize);
+        }
+    }
 
     int IX_ScanIterator::getNextLeafPage() {
         return _currentLeafPage.getNextPageNum();
@@ -517,18 +520,18 @@ void IX_ScanIterator::copyEndKey(const void *endKey, const Attribute &keyAttribu
     }
 
     IXFileHandle::IXFileHandle() {
-    ixReadPageCounter = 0;
-    ixWritePageCounter = 0;
-    ixAppendPageCounter = 0;
-}
+        ixReadPageCounter = 0;
+        ixWritePageCounter = 0;
+        ixAppendPageCounter = 0;
+    }
 
 IXFileHandle::~IXFileHandle() {
 }
 
-RC
-IXFileHandle::collectCounterValues(unsigned &readPageCount, unsigned &writePageCount, unsigned &appendPageCount) {
-    return _pfmFileHandle.collectCounterValues(readPageCount, writePageCount, appendPageCount);
-}
+    RC
+    IXFileHandle::collectCounterValues(unsigned &readPageCount, unsigned &writePageCount, unsigned &appendPageCount) {
+        return _pfmFileHandle.collectCounterValues(readPageCount, writePageCount, appendPageCount);
+    }
 
     void IXFileHandle::fetchRootNodePtrFromDisk() {
         // read page 0 (page 0 is always the page in which we store the

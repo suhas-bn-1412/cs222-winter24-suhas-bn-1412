@@ -165,7 +165,7 @@ namespace PeterDB {
         if (rc == 0) {
             // update freeByteCount
             unsigned int oldFreeByteCount = leafPage.getFreeByteCount();
-            unsigned int newFreeByteCount = oldFreeByteCount - getKeySize(key, attribute);
+            unsigned int newFreeByteCount = oldFreeByteCount + getKeySize(key, attribute);
             leafPage.setFreeByteCount(newFreeByteCount);
 
             // 4) serialize and write-through the page back back to file to effect the delete operation
@@ -264,7 +264,7 @@ namespace PeterDB {
 
     RC IndexManager::deleteFromPage(const void *targetKey, const RID &targetRid, const Attribute &targetKeyAttribute,
                                     PeterDB::LeafPage &leafPage) {
-        std::vector<RidAndKey> ridAndKeyPairs = leafPage.getRidAndKeyPairs();
+        std::vector<RidAndKey> &ridAndKeyPairs = leafPage.getRidAndKeyPairs();
         for (auto ridAndKeyIter = ridAndKeyPairs.begin(); ridAndKeyIter != ridAndKeyPairs.end(); ridAndKeyIter++) {
             if (keyCompare(targetKey, targetRid, targetKeyAttribute.type, *ridAndKeyIter) == 0) {
                 ridAndKeyPairs.erase(ridAndKeyIter);

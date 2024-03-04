@@ -415,12 +415,12 @@ namespace PeterDB {
         if (isWithinRange(nextRidAndKey)) {
             // return the next record
             copy(rid, key, nextRidAndKey);
+            _nextElementPositionOnPage++;
         } else {
             // else return IX EOF
             return IX_EOF;
         }
-
-        assert(1);
+        return 0;
     }
 
     RC IX_ScanIterator::close() {
@@ -518,6 +518,10 @@ namespace PeterDB {
 
     unsigned int IX_ScanIterator::getIndex(LeafPage leafPage, const void *searchKey, const bool shouldIncludeSearchKey,
                                            const AttrType &keyType) {
+        if (searchKey == nullptr) {
+            return 0;
+        }
+
         for (int index = 0; index < leafPage.getRidAndKeyPairs().size(); ++index) {
             const auto &ridAndKey = leafPage.getRidAndKeyPairs().at(index);
 

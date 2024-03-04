@@ -239,7 +239,7 @@ namespace PeterDB {
         }
 
         for (const auto &pageNumAndKey: pageNumAndKeyPairs) {
-            if (keyCompare(searchKey, attribute, pageNumAndKey) > 0 || &pageNumAndKey == &pageNumAndKeyPairs.back()) {
+            if (keyCompare(searchKey, attribute.type, pageNumAndKey) > 0 || &pageNumAndKey == &pageNumAndKeyPairs.back()) {
                 free(pageData); //todo: remove post migration
                 return pageNumAndKey.getPageNum();
             }
@@ -252,7 +252,7 @@ namespace PeterDB {
                                     PeterDB::LeafPage &leafPage) {
         std::vector<RidAndKey> ridAndKeyPairs = leafPage.getRidAndKeyPairs();
         for (auto ridAndKeyIter = ridAndKeyPairs.begin(); ridAndKeyIter != ridAndKeyPairs.end(); ridAndKeyIter++) {
-            if (keyCompare(targetKey, targetRid, targetKeyAttribute, *ridAndKeyIter) == 0) {
+            if (keyCompare(targetKey, targetRid, targetKeyAttribute.type, *ridAndKeyIter) == 0) {
                 ridAndKeyPairs.erase(ridAndKeyIter);
                 return 0;
             }
@@ -267,9 +267,9 @@ namespace PeterDB {
      * < 0 : 'searchKey' < pageNumAndKeyPair.get___Key()
      * > 0 : 'searchKey' > pageNumAndKeyPair.get___Key()
      */
-    int IndexManager::keyCompare(const void *searchKey, const Attribute &searchKeyType,
+    int IndexManager::keyCompare(const void *searchKey, const AttrType& searchKeyType,
                                  const PageNumAndKey &pageNumAndKeyPair) {
-        switch (searchKeyType.type) {
+        switch (searchKeyType) {
             case TypeInt: {
                 int keyA;
                 memcpy((void *) &keyA, searchKey, sizeof(keyA));
@@ -314,9 +314,9 @@ namespace PeterDB {
     * < 0 : 'searchKey' < ridAndKeyPair.get___Key()
     * > 0 : 'searchKey' > ridAndKeyPair.get___Key()
     */
-    int IndexManager::keyCompare(const void *searchKey, const RID searchRid, const Attribute searchKeyType,
-                                 const RidAndKey ridAndKeyPair) {
-        switch (searchKeyType.type) {
+    int IndexManager::keyCompare(const void *searchKey, const RID searchRid, const AttrType& searchKeyType,
+                                 const RidAndKey& ridAndKeyPair) {
+        switch (searchKeyType) {
             case TypeInt: {
                 int keyA;
                 memcpy((void *) &keyA, searchKey, sizeof(keyA));
@@ -398,9 +398,9 @@ namespace PeterDB {
 
         // if the next record is within the endKey
         const RidAndKey &nextRidAndKey = _currentLeafPage.getRidAndKeyPairs().at(_nextElementPositionOnPage);
-        if (isWithinRange(nextRidAndKey, _endKey, _keyAttribute, _shouldIncludeEndKey)) {
+        if (isWithinRange(nextRidAndKey)) {
             // return the next record
-            copy(rid, key, nextRidAndKey, _keyAttribute);
+            copy(rid, key, nextRidAndKey);
         } else {
             // else return IX EOF
             return IX_EOF;
@@ -427,11 +427,11 @@ namespace PeterDB {
                           const Attribute &keyAttribute) {
         _ixFileHandle = ixFileHandle;
         _shouldIncludeEndKey = shouldIncludeEndKey;
-        _keyAttribute = keyAttribute;
+        _keyType = keyAttribute.type;
         copyEndKey(endKey, keyAttribute);
 
         loadLeafPage(pageNumBegin);
-        _nextElementPositionOnPage = getIndex(_currentLeafPage, startKey, shouldIncludeStartKey, keyAttribute);
+        _nextElementPositionOnPage = getIndex(_currentLeafPage, startKey, shouldIncludeStartKey, _keyType);
     }
 
     void IX_ScanIterator::copyEndKey(const void *endKey, const Attribute &keyAttribute) {
@@ -453,28 +453,27 @@ namespace PeterDB {
         return _nextElementPositionOnPage == numKeysInCurrentPage;
     }
 
-    bool IX_ScanIterator::isWithinRange(const RidAndKey &candidateRidAndKey, void *endKey, Attribute keyAttribute,
-                                        bool includeEndKey) {
-        void *candidateKey = malloc(keyAttribute.length);
-        switch (keyAttribute.type) {
-            case TypeInt: {
-                int candidateKeyCopy = candidateRidAndKey.getIntKey();
-                memcpy(&candidateKey, &candidateKeyCopy, sizeof(candidateKeyCopy));
-            }
-                break;
-            case TypeReal: {
-                float candidateKeyCopy = candidateRidAndKey.getFloatKey();
-                memcpy(&candidateKey, &candidateKeyCopy, sizeof(candidateKeyCopy));
-            }
-                break;
-            case TypeVarChar:
-                //fixme
-                break;
-        }
+    bool IX_ScanIterator::isWithinRange(const RidAndKey &candidateRidAndKey) {
+//        void *candidateKey = malloc(keyType.length);
+//        switch (keyType.type) {
+//            case TypeInt: {
+//                int candidateKeyCopy = candidateRidAndKey.getIntKey();
+//                memcpy(&candidateKey, &candidateKeyCopy, sizeof(candidateKeyCopy));
+//            }
+//                break;
+//            case TypeReal: {
+//                float candidateKeyCopy = candidateRidAndKey.getFloatKey();
+//                memcpy(&candidateKey, &candidateKeyCopy, sizeof(candidateKeyCopy));
+//            }
+//                break;
+//            case TypeVarChar:
+//                //fixme
+//                break;
+//        }
 
         //fixme
         return true;
-//        int comparisionResult = IndexManager::keyCompare(candidateKey, candidateRidAndKey.getRid(), keyAttribute,
+//        int comparisionResult = IndexManager::keyCompare(candidateKey, candidateRidAndKey.getRid(), keyType,
 //                                                         candidateRidAndKey);
 //        if (comparisionResult == 0 && shouldIncludeSearchKey) {
 //            return index;
@@ -483,10 +482,10 @@ namespace PeterDB {
 //        }
     }
 
-    void IX_ScanIterator::copy(RID &destRid, void *destKey, const RidAndKey &srcRidAndKey, Attribute keyAttribute) {
+    void IX_ScanIterator::copy(RID &destRid, void *destKey, const RidAndKey &srcRidAndKey) {
         destRid.pageNum = srcRidAndKey.getRid().pageNum;
         destRid.slotNum = srcRidAndKey.getRid().slotNum;
-        switch (keyAttribute.type) {
+        switch (_keyType) {
             case TypeInt: {
                 int srcKey = srcRidAndKey.getIntKey();
                 memcpy(destKey, &srcKey, sizeof(srcKey));
@@ -504,12 +503,12 @@ namespace PeterDB {
     }
 
     unsigned int IX_ScanIterator::getIndex(LeafPage leafPage, const void *searchKey, const bool shouldIncludeSearchKey,
-                                           const Attribute &keyAttribute) {
+                                           const AttrType &keyType) {
         for (int index = 0; index < leafPage.getRidAndKeyPairs().size(); ++index) {
             const auto &ridAndKey = leafPage.getRidAndKeyPairs().at(index);
 
             // pass in the same RID for both keys as an RID comparision is out of place
-            int comparisionResult = IndexManager::keyCompare(searchKey, ridAndKey.getRid(), keyAttribute, ridAndKey);
+            int comparisionResult = IndexManager::keyCompare(searchKey, ridAndKey.getRid(), keyType, ridAndKey);
             if (comparisionResult == 0 && shouldIncludeSearchKey) {
                 return index;
             } else if (comparisionResult > 0) {

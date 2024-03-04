@@ -73,7 +73,7 @@ namespace PeterDB {
             * < 0 : 'searchKey' < pageNumAndKeyPair.get___Key()
             * > 0 : 'searchKey' > pageNumAndKeyPair.get___Key()
             */
-        static int keyCompare(const void *searchKey, const RID searchRid, const Attribute searchKeyType, const RidAndKey ridAndKeyPair);
+        static int keyCompare(const void *searchKey, const RID searchRid, const AttrType& searchKeyType, const RidAndKey& ridAndKeyPair);
 
     protected:
        RC insertHelper(IXFileHandle& fileHandle, PageNum node, const RidAndKey& entry, PageNumAndKey& newChild);
@@ -94,7 +94,7 @@ namespace PeterDB {
          * < 0 : 'searchKey' < pageNumAndKeyPair.get___Key()
          * > 0 : 'searchKey' > pageNumAndKeyPair.get___Key()
          */
-        static int keyCompare(const void *searchKey, const Attribute &searchKeyType, const PageNumAndKey &pageNumAndKeyPair);
+        static int keyCompare(const void *searchKey, const AttrType& searchKeyType, const PageNumAndKey &pageNumAndKeyPair);
 
         void loadPage(unsigned int pageNum, void *pageData, IXFileHandle &ixFileHandle) const;
 
@@ -130,7 +130,7 @@ namespace PeterDB {
         // maybe store 'leafPageKeysSize' and check each time for decrease, implying delete
         // or store current/ nextRid
         void * _endKey;
-        Attribute _keyAttribute;
+        AttrType _keyType;
         bool _shouldIncludeEndKey;
 
         void copyEndKey(const void *endKey, const Attribute &keyAttribute);
@@ -139,13 +139,13 @@ namespace PeterDB {
 
         bool atEndOfCurrentPage();
 
-        static bool isWithinRange(const RidAndKey &candidateRidAndKey, void *endKey, Attribute keyAttribute, bool includeEndKey);
+        static bool isWithinRange(const RidAndKey &candidateRidAndKey);
 
-        void copy(RID &destRid, void *destKey, const RidAndKey &srcRidAndKey, Attribute keyAttribute);
+        void copy(RID &destRid, void *destKey, const RidAndKey &srcRidAndKey);
 
         unsigned int
         getIndex(LeafPage leafPage, const void *searchKey, const bool shouldIncludeSearchKey,
-                 const Attribute &keyAttribute);
+                 const AttrType &keyType);
     };
 
     class IXFileHandle {

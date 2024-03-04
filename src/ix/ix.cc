@@ -217,10 +217,21 @@ namespace PeterDB {
     }
 
     RC IndexManager::printBTree(IXFileHandle &ixFileHandle, const Attribute &attribute, std::ostream &out) const {
-        return 0;
-    }
+        if (0 == ixFileHandle._rootPagePtr) {
+            ixFileHandle.fetchRootNodePtrFromDisk();
 
-    RC IndexManager::printHelper(IXFileHandle &ixFileHandle, const Attribute &attribute, std::ostream &out) const {
+            assert(0 != ixFileHandle._rootPagePtr);
+        }
+
+        switch (attribute.type) {
+            case TypeInt:
+                return intPrinter(ixFileHandle, ixFileHandle._rootPagePtr, out);
+            case TypeReal:
+                return floatPrinter(ixFileHandle, ixFileHandle._rootPagePtr, out);
+            case TypeVarChar:
+                return varcharPrinter(ixFileHandle, ixFileHandle._rootPagePtr, out);
+        }
+        assert(0);
         return 0;
     }
 
@@ -758,6 +769,273 @@ IXFileHandle::~IXFileHandle() {
             newChild.setPageNum(newPageNum);
             return 0;
         }
+
+        return 0;
+    }
+
+    void printIntegerLeafNode(LeafPage& leafPage, std::ostream &out) {
+        std::map<int, std::vector<RID>> keyToRids;
+
+        auto ridAndKeyVec = leafPage.getRidAndKeyPairs();
+        for (auto &ridAndKey : ridAndKeyVec) {
+            keyToRids[ridAndKey.getIntKey()].push_back(ridAndKey.getRid());
+        }
+
+        out << "{\"keys\": [";
+        for (auto it = keyToRids.begin(); it != keyToRids.end(); ++it) {
+            out << "\"" << it->first;
+
+            auto ridList = it->second;
+
+            for (auto ridIt = ridList.begin(); ridIt != ridList.end(); ++ridIt) {
+                RID rid = *ridIt;
+                out << "(" << rid.pageNum << "," << rid.slotNum << ")";
+                if (std::next(ridIt) != ridList.end()) {
+                    out << ",";
+                }
+            }
+
+            if (std::next(it) != keyToRids.end()) {
+                out << ",";
+            }
+        }
+        out << "]}";
+    }
+
+    RC IndexManager::intPrinter(IXFileHandle &ixFileHandle, PageNum node, std::ostream &out) const {
+        void* data = malloc(PAGE_SIZE);
+        assert(nullptr != data);
+        memset(data, 0, PAGE_SIZE);
+
+        if (0 != ixFileHandle._pfmFileHandle.readPage(node, data)) {
+            ERROR("Error while reading page %d from file %s\n", node, ixFileHandle._fileName.c_str());
+            free(data);
+            return -1;
+        }
+
+        LeafPage leafPage;
+        NonLeafPage nonLeafPage;
+
+        if (deserializer->isLeafPage(data)) {
+            deserializer->toLeafPage(data, leafPage);
+            printIntegerLeafNode(leafPage, out);
+        }
+        else {
+            deserializer->toNonLeafPage(data, nonLeafPage);
+
+            std::vector<int> keyList;
+            std::vector<PageNum> nodesList;
+
+            std::vector<PageNumAndKey> pageNumAndKeys = nonLeafPage.getPageNumAndKeys();
+
+            for (auto it : pageNumAndKeys) {
+                keyList.push_back(it.getIntKey());
+                nodesList.push_back(it.getPageNum());
+            }
+
+            // the last node in the keylist is invalid (only the pointer is valid in that entry)
+            out << "{";
+            out << "\"keys\": [";
+            for (int i=0; i<keyList.size()-1; i++) {
+                out << "\"" << keyList[i] << "\"";
+                if (i != keyList.size()-2) {
+                    out << ",";
+                }
+            }
+            out << "],";
+
+            // print eh childrens now
+            out << "\"children\": [";
+            for (auto childIt = nodesList.begin(); childIt != nodesList.end(); ++childIt) {
+                intPrinter(ixFileHandle, *childIt, out);
+                if (std::next(childIt) != nodesList.end()) {
+                    out << ",";
+                }
+            }
+            out << "]";
+
+            out << "}";
+        }
+
+        free(data);
+
+        return 0;
+    }
+
+    void printFloatLeafNode(LeafPage& leafPage, std::ostream &out) {
+        std::map<float, std::vector<RID>> keyToRids;
+
+        auto ridAndKeyVec = leafPage.getRidAndKeyPairs();
+        for (auto &ridAndKey : ridAndKeyVec) {
+            keyToRids[ridAndKey.getFloatKey()].push_back(ridAndKey.getRid());
+        }
+
+        out << "{\"keys\": [";
+        for (auto it = keyToRids.begin(); it != keyToRids.end(); ++it) {
+            out << "\"" << it->first;
+
+            auto ridList = it->second;
+
+            for (auto ridIt = ridList.begin(); ridIt != ridList.end(); ++ridIt) {
+                RID rid = *ridIt;
+                out << "(" << rid.pageNum << "," << rid.slotNum << ")";
+                if (std::next(ridIt) != ridList.end()) {
+                    out << ",";
+                }
+            }
+
+            if (std::next(it) != keyToRids.end()) {
+                out << ",";
+            }
+        }
+        out << "]}";
+    }
+
+    RC IndexManager::floatPrinter(IXFileHandle &ixFileHandle, PageNum node, std::ostream &out) const {
+        void* data = malloc(PAGE_SIZE);
+        assert(nullptr != data);
+        memset(data, 0, PAGE_SIZE);
+
+        if (0 != ixFileHandle._pfmFileHandle.readPage(node, data)) {
+            ERROR("Error while reading page %d from file %s\n", node, ixFileHandle._fileName.c_str());
+            free(data);
+            return -1;
+        }
+
+        LeafPage leafPage;
+        NonLeafPage nonLeafPage;
+
+        if (deserializer->isLeafPage(data)) {
+            deserializer->toLeafPage(data, leafPage);
+            printFloatLeafNode(leafPage, out);
+        }
+        else {
+            deserializer->toNonLeafPage(data, nonLeafPage);
+
+            std::vector<float> keyList;
+            std::vector<PageNum> nodesList;
+
+            std::vector<PageNumAndKey> pageNumAndKeys = nonLeafPage.getPageNumAndKeys();
+
+            for (auto it : pageNumAndKeys) {
+                keyList.push_back(it.getFloatKey());
+                nodesList.push_back(it.getPageNum());
+            }
+
+            // the last node in the keylist is invalid (only the pointer is valid in that entry)
+            out << "{";
+            out << "\"keys\": [";
+            for (int i=0; i<keyList.size()-1; i++) {
+                out << "\"" << keyList[i] << "\"";
+                if (i != keyList.size()-2) {
+                    out << ",";
+                }
+            }
+            out << "],";
+
+            // print eh childrens now
+            out << "\"children\": [";
+            for (auto childIt = nodesList.begin(); childIt != nodesList.end(); ++childIt) {
+                floatPrinter(ixFileHandle, *childIt, out);
+                if (std::next(childIt) != nodesList.end()) {
+                    out << ",";
+                }
+            }
+            out << "]";
+
+            out << "}";
+        }
+
+        free(data);
+
+        return 0;
+    }
+
+    void printVarcharLeafNode(LeafPage& leafPage, std::ostream &out) {
+        std::map<std::string, std::vector<RID>> keyToRids;
+
+        auto ridAndKeyVec = leafPage.getRidAndKeyPairs();
+        for (auto &ridAndKey : ridAndKeyVec) {
+            keyToRids[ridAndKey.getStringKey()].push_back(ridAndKey.getRid());
+        }
+
+        out << "{\"keys\": [";
+        for (auto it = keyToRids.begin(); it != keyToRids.end(); ++it) {
+            out << "\"" << it->first;
+
+            auto ridList = it->second;
+
+            for (auto ridIt = ridList.begin(); ridIt != ridList.end(); ++ridIt) {
+                RID rid = *ridIt;
+                out << "(" << rid.pageNum << "," << rid.slotNum << ")";
+                if (std::next(ridIt) != ridList.end()) {
+                    out << ",";
+                }
+            }
+
+            if (std::next(it) != keyToRids.end()) {
+                out << ",";
+            }
+        }
+        out << "]}";
+    }
+
+    RC IndexManager::varcharPrinter(IXFileHandle &ixFileHandle, PageNum node, std::ostream &out) const {
+        void* data = malloc(PAGE_SIZE);
+        assert(nullptr != data);
+        memset(data, 0, PAGE_SIZE);
+
+        if (0 != ixFileHandle._pfmFileHandle.readPage(node, data)) {
+            ERROR("Error while reading page %d from file %s\n", node, ixFileHandle._fileName.c_str());
+            free(data);
+            return -1;
+        }
+
+        LeafPage leafPage;
+        NonLeafPage nonLeafPage;
+
+        if (deserializer->isLeafPage(data)) {
+            deserializer->toLeafPage(data, leafPage);
+            printVarcharLeafNode(leafPage, out);
+        }
+        else {
+            deserializer->toNonLeafPage(data, nonLeafPage);
+
+            std::vector<std::string> keyList;
+            std::vector<PageNum> nodesList;
+
+            std::vector<PageNumAndKey> pageNumAndKeys = nonLeafPage.getPageNumAndKeys();
+
+            for (auto it : pageNumAndKeys) {
+                keyList.push_back(it.getStringKey());
+                nodesList.push_back(it.getPageNum());
+            }
+
+            // the last node in the keylist is invalid (only the pointer is valid in that entry)
+            out << "{";
+            out << "\"keys\": [";
+            for (int i=0; i<keyList.size()-1; i++) {
+                out << "\"" << keyList[i] << "\"";
+                if (i != keyList.size()-2) {
+                    out << ",";
+                }
+            }
+            out << "],";
+
+            // print eh childrens now
+            out << "\"children\": [";
+            for (auto childIt = nodesList.begin(); childIt != nodesList.end(); ++childIt) {
+                varcharPrinter(ixFileHandle, *childIt, out);
+                if (std::next(childIt) != nodesList.end()) {
+                    out << ",";
+                }
+            }
+            out << "]";
+
+            out << "}";
+        }
+
+        free(data);
 
         return 0;
     }

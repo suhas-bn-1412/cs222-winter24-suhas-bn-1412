@@ -62,7 +62,9 @@ namespace PeterDB {
         // Print the B+ tree in pre-order (in a JSON record format)
         RC printBTree(IXFileHandle &ixFileHandle, const Attribute &attribute, std::ostream &out) const;
 
-        RC printHelper(IXFileHandle &ixFileHandle, const Attribute &attribute, std::ostream &out) const;
+        RC intPrinter(IXFileHandle &ixFileHandle, PageNum node, std::ostream &out) const;
+        RC floatPrinter(IXFileHandle &ixFileHandle, PageNum node, std::ostream &out) const;
+        RC varcharPrinter(IXFileHandle &ixFileHandle, PageNum node, std::ostream &out) const;
 
         static unsigned int getKeySize(const void *key, const Attribute &attributeOfKey);
 

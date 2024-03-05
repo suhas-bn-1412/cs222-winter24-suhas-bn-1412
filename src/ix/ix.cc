@@ -33,9 +33,6 @@ namespace PeterDB {
     }
 
     RC IndexManager::closeFile(IXFileHandle &ixFileHandle) {
-        if (0 != ixFileHandle._pfmFileHandle.getNextPageNum())
-            ixFileHandle.writeRootNodePtrToDisk();
-
         return _pagedFileManager->closeFile(ixFileHandle._pfmFileHandle);
     }
 
@@ -150,6 +147,7 @@ namespace PeterDB {
                 PAGE_SIZE); //todo: migrate to class member, perhaps Suhas has done this already, so wait for his commits
         unsigned int pageNum;
 
+        ixFileHandle.fetchRootNodePtrFromDisk();
         pageNum = ixFileHandle._rootPagePtr;
         loadPage(pageNum, pageData, ixFileHandle);
 
@@ -185,7 +183,10 @@ namespace PeterDB {
 
     void IndexManager::loadPage(unsigned int pageNum, void *pageData,
                                 IXFileHandle &ixFileHandle) const {
-        ixFileHandle._pfmFileHandle.readPage((unsigned) pageNum, pageData);
+        if (0 != ixFileHandle._pfmFileHandle.readPage((unsigned) pageNum, pageData)) {
+            ERROR("Error while reading page %d from file %s\n", pageNum, ixFileHandle._fileName.c_str());
+            assert(0);
+        }
     }
 
     RC IndexManager::scan(IXFileHandle &ixFileHandle,
@@ -573,6 +574,8 @@ IXFileHandle::~IXFileHandle() {
         assert(nullptr != data);
         memset(data, 0, PAGE_SIZE);
 
+        serializer->toBytes(page, data);
+
         // if pageNum is -1, create the page and insert the data
         if (-1 == pageNum) {
             auto newPageNum = fileHandle._pfmFileHandle.getNextPageNum();
@@ -581,16 +584,14 @@ IXFileHandle::~IXFileHandle() {
                 ERROR("Can't create new page to write the new leaf/non-leaf page\n");
                 return -1;
             }
-            pageNum = newPageNum;
         }
-
-        serializer->toBytes(page, data);
-
-        assert(pageNum >= 0);
-        if (0 != fileHandle._pfmFileHandle.writePage(pageNum, data)) {
-            free(data);
-            ERROR("Writing leaf/non-leaf page with pageNum %d resulted in failure\n", pageNum);
-            return -1;
+        else {
+            assert(pageNum >= 0);
+            if (0 != fileHandle._pfmFileHandle.writePage(pageNum, data)) {
+                free(data);
+                ERROR("Writing leaf/non-leaf page with pageNum %d resulted in failure\n", pageNum);
+                return -1;
+            }
         }
 
         free(data);

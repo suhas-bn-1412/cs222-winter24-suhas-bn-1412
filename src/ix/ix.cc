@@ -15,14 +15,36 @@ namespace PeterDB {
     }
 
     RC IndexManager::createFile(const std::string &fileName) {
-        return _pagedFileManager->createFile(fileName);
+        if (m_indexesCreated.end() != m_indexesCreated.find(fileName)) {
+            return -1;
+        }
+
+        if (0 != _pagedFileManager->createFile(fileName)) {
+            return -1;
+        }
+
+        m_indexesCreated[fileName] = true;
+        return 0;
     }
 
     RC IndexManager::destroyFile(const std::string &fileName) {
-        return _pagedFileManager->destroyFile(fileName);
+        if (m_indexesCreated.end() == m_indexesCreated.find(fileName)) {
+            return -1;
+        }
+
+        if (0 != _pagedFileManager->destroyFile(fileName)) {
+            return -1;
+        }
+
+        m_indexesCreated.erase(fileName);
+        return 0;
     }
 
     RC IndexManager::openFile(const std::string &fileName, IXFileHandle &ixFileHandle) {
+        if (m_indexesCreated.end() == m_indexesCreated.find(fileName)) {
+            return -1;
+        }
+
         if (0 != _pagedFileManager->openFile(fileName, ixFileHandle._pfmFileHandle)) {
             ERROR("Error while opening the index file %s\n", fileName.c_str());
             return -1;
@@ -33,10 +55,17 @@ namespace PeterDB {
     }
 
     RC IndexManager::closeFile(IXFileHandle &ixFileHandle) {
-        if (0 != ixFileHandle._pfmFileHandle.getNextPageNum())
-            ixFileHandle.writeRootNodePtrToDisk();
+        if ("" == ixFileHandle._fileName ||
+            m_indexesCreated.end() == m_indexesCreated.find(ixFileHandle._fileName)) {
+            return -1;
+        }
 
-        return _pagedFileManager->closeFile(ixFileHandle._pfmFileHandle);
+        if (0 != _pagedFileManager->closeFile(ixFileHandle._pfmFileHandle)) {
+            return -1;
+        }
+
+        ixFileHandle._fileName = "";
+        return 0;
     }
 
     RidAndKey createEntryToInsert(const Attribute &attribute, const void *key, const RID &rid) {
@@ -150,6 +179,7 @@ namespace PeterDB {
                 PAGE_SIZE); //todo: migrate to class member, perhaps Suhas has done this already, so wait for his commits
         unsigned int pageNum;
 
+        ixFileHandle.fetchRootNodePtrFromDisk();
         pageNum = ixFileHandle._rootPagePtr;
         loadPage(pageNum, pageData, ixFileHandle);
 
@@ -185,7 +215,10 @@ namespace PeterDB {
 
     void IndexManager::loadPage(unsigned int pageNum, void *pageData,
                                 IXFileHandle &ixFileHandle) const {
-        ixFileHandle._pfmFileHandle.readPage((unsigned) pageNum, pageData);
+        if (0 != ixFileHandle._pfmFileHandle.readPage((unsigned) pageNum, pageData)) {
+            ERROR("Error while reading page %d from file %s\n", pageNum, ixFileHandle._fileName.c_str());
+            assert(0);
+        }
     }
 
     RC IndexManager::scan(IXFileHandle &ixFileHandle,
@@ -195,7 +228,11 @@ namespace PeterDB {
                           bool lowKeyInclusive,
                           bool highKeyInclusive,
                           IX_ScanIterator &ix_ScanIterator) {
-        //todo: verify IXFileHandle is active (perhaps Suhas has done this func. already; wait)
+
+        if (m_indexesCreated.end() == m_indexesCreated.find(ixFileHandle._fileName) ||
+            "" == ixFileHandle._fileName) {
+            return -1;
+        }
 
         void *pageData = malloc(
                 PAGE_SIZE); //todo: migrate to class member, perhaps Suhas has done this already, so wait for his commits
@@ -573,6 +610,8 @@ IXFileHandle::~IXFileHandle() {
         assert(nullptr != data);
         memset(data, 0, PAGE_SIZE);
 
+        serializer->toBytes(page, data);
+
         // if pageNum is -1, create the page and insert the data
         if (-1 == pageNum) {
             auto newPageNum = fileHandle._pfmFileHandle.getNextPageNum();
@@ -581,16 +620,14 @@ IXFileHandle::~IXFileHandle() {
                 ERROR("Can't create new page to write the new leaf/non-leaf page\n");
                 return -1;
             }
-            pageNum = newPageNum;
         }
-
-        serializer->toBytes(page, data);
-
-        assert(pageNum >= 0);
-        if (0 != fileHandle._pfmFileHandle.writePage(pageNum, data)) {
-            free(data);
-            ERROR("Writing leaf/non-leaf page with pageNum %d resulted in failure\n", pageNum);
-            return -1;
+        else {
+            assert(pageNum >= 0);
+            if (0 != fileHandle._pfmFileHandle.writePage(pageNum, data)) {
+                free(data);
+                ERROR("Writing leaf/non-leaf page with pageNum %d resulted in failure\n", pageNum);
+                return -1;
+            }
         }
 
         free(data);

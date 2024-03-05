@@ -15,14 +15,36 @@ namespace PeterDB {
     }
 
     RC IndexManager::createFile(const std::string &fileName) {
-        return _pagedFileManager->createFile(fileName);
+        if (m_indexesCreated.end() != m_indexesCreated.find(fileName)) {
+            return -1;
+        }
+
+        if (0 != _pagedFileManager->createFile(fileName)) {
+            return -1;
+        }
+
+        m_indexesCreated[fileName] = true;
+        return 0;
     }
 
     RC IndexManager::destroyFile(const std::string &fileName) {
-        return _pagedFileManager->destroyFile(fileName);
+        if (m_indexesCreated.end() == m_indexesCreated.find(fileName)) {
+            return -1;
+        }
+
+        if (0 != _pagedFileManager->destroyFile(fileName)) {
+            return -1;
+        }
+
+        m_indexesCreated.erase(fileName);
+        return 0;
     }
 
     RC IndexManager::openFile(const std::string &fileName, IXFileHandle &ixFileHandle) {
+        if (m_indexesCreated.end() == m_indexesCreated.find(fileName)) {
+            return -1;
+        }
+
         if (0 != _pagedFileManager->openFile(fileName, ixFileHandle._pfmFileHandle)) {
             ERROR("Error while opening the index file %s\n", fileName.c_str());
             return -1;
@@ -33,7 +55,17 @@ namespace PeterDB {
     }
 
     RC IndexManager::closeFile(IXFileHandle &ixFileHandle) {
-        return _pagedFileManager->closeFile(ixFileHandle._pfmFileHandle);
+        if ("" == ixFileHandle._fileName ||
+            m_indexesCreated.end() == m_indexesCreated.find(ixFileHandle._fileName)) {
+            return -1;
+        }
+
+        if (0 != _pagedFileManager->closeFile(ixFileHandle._pfmFileHandle)) {
+            return -1;
+        }
+
+        ixFileHandle._fileName = "";
+        return 0;
     }
 
     RidAndKey createEntryToInsert(const Attribute &attribute, const void *key, const RID &rid) {
@@ -196,7 +228,11 @@ namespace PeterDB {
                           bool lowKeyInclusive,
                           bool highKeyInclusive,
                           IX_ScanIterator &ix_ScanIterator) {
-        //todo: verify IXFileHandle is active (perhaps Suhas has done this func. already; wait)
+
+        if (m_indexesCreated.end() == m_indexesCreated.find(ixFileHandle._fileName) ||
+            "" == ixFileHandle._fileName) {
+            return -1;
+        }
 
         void *pageData = malloc(
                 PAGE_SIZE); //todo: migrate to class member, perhaps Suhas has done this already, so wait for his commits

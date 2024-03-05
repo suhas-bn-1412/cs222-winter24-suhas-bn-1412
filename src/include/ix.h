@@ -3,6 +3,7 @@
 
 #include <vector>
 #include <string>
+#include <unordered_map>
 
 #include "pfm.h"
 #include "rbfm.h" // for some type declarations only, e.g., RID and Attribute
@@ -28,6 +29,7 @@ namespace PeterDB {
         PagedFileManager* _pagedFileManager = nullptr;
         PageDeserializer* deserializer = nullptr;
         PageSerializer* serializer = nullptr;
+        std::unordered_map<std::string, bool> m_indexesCreated;
 
     public:
         static IndexManager &instance();

@@ -241,6 +241,7 @@ namespace PeterDB {
 
         //todo:
         // 1) get root pageNum and load the root page
+        ixFileHandle.fetchRootNodePtrFromDisk();
         pageNum = ixFileHandle._rootPagePtr;
         loadPage(pageNum, pageData, ixFileHandle);
 
@@ -290,11 +291,11 @@ namespace PeterDB {
         }
 
         for (const auto &pageNumAndKey: pageNumAndKeyPairs) {
-            if (keyCompare(searchKey, attribute.type, pageNumAndKey) > 0 || &pageNumAndKey == &pageNumAndKeyPairs.back()) {
+            if (keyCompare(searchKey, attribute.type, pageNumAndKey) < 0 || &pageNumAndKey == &pageNumAndKeyPairs.back()) {
                 return pageNumAndKey.getPageNum();
             }
         }
-        assert(1);
+        assert(0);
         return 0;
     }
 
@@ -535,7 +536,7 @@ namespace PeterDB {
         if (comparisionResult == 0 && _shouldIncludeEndKey) {
             return true;
         } else {
-            return comparisionResult < 0;
+            return comparisionResult > 0;
         }
     }
 
@@ -569,10 +570,10 @@ namespace PeterDB {
             const auto &ridAndKey = leafPage.getRidAndKeyPairs().at(index);
 
             // pass in the same RID for both keys as an RID comparision is out of place
-            int comparisionResult = IndexManager::keyCompare(searchKey, ridAndKey.getRid(), keyType, ridAndKey);
+            int comparisionResult = IndexManager::keyCompare(searchKey, keyType, ridAndKey);
             if (comparisionResult == 0 && shouldIncludeSearchKey) {
                 return index;
-            } else if (comparisionResult > 0) {
+            } else if (comparisionResult < 0) {
                 return index;
             }
         }

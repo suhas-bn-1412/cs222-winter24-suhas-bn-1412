@@ -77,6 +77,8 @@ namespace PeterDB {
         byte *readPtr = (byte *) data;
         const size_t pageNumSize = sizeof(unsigned int);
 
+        nonLeafPage.getPageNumAndKeys().clear();
+
         for (int elementNum = 0; elementNum < numKeys; ++elementNum) {
             // read pageNum to file
             unsigned int pageNum;
@@ -126,6 +128,8 @@ namespace PeterDB {
     void PageDeserializer::readKeyAndRidPairs(LeafPage &leafPage, const void *data, unsigned int numKeys) {
         byte *readPtr = (byte *) data;
         const size_t ridSize = sizeof(RID);
+
+        leafPage.getRidAndKeyPairs().clear();
 
         for (int elementNum = 0; elementNum < numKeys; ++elementNum) {
             // read RID from file

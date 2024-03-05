@@ -1,6 +1,7 @@
 #include "src/include/ix.h"
 #include "src/include/pageDeserializer.h"
 #include "src/include/pageSerializer.h"
+#include "src/include/varcharSerDes.h"
 
 namespace PeterDB {
     IndexManager &IndexManager::instance() {
@@ -344,13 +345,14 @@ namespace PeterDB {
                     return 1;
                 }
             }
-            case TypeVarChar:
-                //todo
-                assert(1);
-                break;
+            case TypeVarChar: {
+                const std::string keyA = VarcharSerDes::deserialize(searchKey);
+                const std::string& keyB = pageNumAndKeyPair.getStringKey();
+                return strcmp(keyA.data(), keyB.data());
+            }
             default:
-                ERROR("Illegal Attribute type");
-                assert(1);
+                ERROR("Unhandled Attribute type");
+                assert(0);
         }
         assert(0);
         return 0;
@@ -395,13 +397,14 @@ namespace PeterDB {
                     return 1;
                 }
             }
-            case TypeVarChar:
-                //todo
-                assert(1);
-                break;
+            case TypeVarChar: {
+                const std::string keyA = VarcharSerDes::deserialize(searchKey);
+                const std::string& keyB = ridAndKeyPair.getStringKey();
+                return strcmp(keyA.data(), keyB.data());
+            }
             default:
                 ERROR("Illegal Attribute type");
-                assert(1);
+                assert(0);
         }
         assert(0);
         return 0;

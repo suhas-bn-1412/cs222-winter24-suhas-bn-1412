@@ -17,7 +17,7 @@ namespace PeterDB {
         memmove(destPtr, string.c_str(), stringLen);
     }
 
-    std::string VarcharSerDes::deserialize(void *data) {
+    std::string VarcharSerDes::deserialize(const void *data) {
         uint32_t stringLength;
         byte *readPtr = (byte *) data;
         memcpy(&stringLength, (void *) readPtr, VARCHAR_SIZE_SPECIFIER_SIZE);

@@ -15,7 +15,7 @@ namespace PeterDB {
 
         static void serialize(const std::string &string, void *data);
 
-        static std::string deserialize(void *data);
+        static std::string deserialize(const void *data);
 
     private:
         static const size_t VARCHAR_SIZE_SPECIFIER_SIZE = sizeof(uint32_t);

@@ -1,5 +1,6 @@
 #include "src/include/pageDeserializer.h"
 #include "src/include/pageSerDesConstants.h"
+#include "src/include/varcharSerDes.h"
 
 typedef char byte;
 
@@ -106,10 +107,15 @@ namespace PeterDB {
                     nonLeafPage.getPageNumAndKeys().push_back(pageNumAndKey);
                     break;
                 }
-                case TypeVarChar:
-                    //todo
-                    assert(1);
+                case TypeVarChar: {
+                    std::string key = VarcharSerDes::deserialize(readPtr);
+                    const size_t keySizePreDeserialization = VarcharSerDes::computeSerializedSize(key);
+                    readPtr += keySizePreDeserialization;
+
+                    const PageNumAndKey pageNumAndKey(pageNum, key);
+                    nonLeafPage.getPageNumAndKeys().push_back(pageNumAndKey);
                     break;
+                }
                 default:
                     ERROR("Illegal Attribute type");
                     assert(1);
@@ -152,10 +158,15 @@ namespace PeterDB {
                     break;
                 }
 
-                case TypeVarChar:
-                    //todo
-                    assert(1);
+                case TypeVarChar: {
+                    std::string key = VarcharSerDes::deserialize(readPtr);
+                    const size_t keySizePreDeserialization = VarcharSerDes::computeSerializedSize(key);
+                    readPtr += keySizePreDeserialization;
+
+                    const RidAndKey ridAndKey(rid, key);
+                    leafPage.getRidAndKeyPairs().push_back(ridAndKey);
                     break;
+                }
                 default:
                     ERROR("Illegal Attribute type");
                     assert(1);

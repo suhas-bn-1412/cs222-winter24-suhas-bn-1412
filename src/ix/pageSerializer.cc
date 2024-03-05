@@ -1,5 +1,6 @@
 #include "src/include/pageSerializer.h"
 #include "src/include/pageSerDesConstants.h"
+#include "src/include/varcharSerDes.h"
 
 typedef char byte;
 
@@ -87,9 +88,13 @@ namespace PeterDB {
                     writePtr += keySize;
                     break;
                 }
-                case TypeVarChar:
-                    //todo
+                case TypeVarChar: {
+                    const std::string key = pageNumAndKey.getStringKey();
+                    VarcharSerDes::serialize(key, (void *) writePtr);
+                    const size_t keySizePostSerialization = VarcharSerDes::computeSerializedSize(key);
+                    writePtr += keySizePostSerialization;
                     break;
+                }
                 default:
                     ERROR("Illegal Attribute type");
                     assert(1);
@@ -123,9 +128,13 @@ namespace PeterDB {
                     writePtr += keySize;
                     break;
                 }
-                case TypeVarChar:
-                    //todo
+                case TypeVarChar: {
+                    const std::string key = ridAndKeyPair.getStringKey();
+                    VarcharSerDes::serialize(key, (void *) writePtr);
+                    const size_t keySizePostSerialization = VarcharSerDes::computeSerializedSize(key);
+                    writePtr += keySizePostSerialization;
                     break;
+                }
                 default:
                     ERROR("Illegal Attribute type");
                     assert(1);

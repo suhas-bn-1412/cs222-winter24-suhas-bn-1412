@@ -176,8 +176,8 @@ namespace PeterDB {
         return _pageNumAndKeys[idx].getPageNum();
     }
 
-    bool NonLeafPage::getRequiredSpace(const PageNumAndKey& entry) {
-        auto reqSpace = sizeof(entry.getPageNum());
+    unsigned int NonLeafPage::getRequiredSpace(const PageNumAndKey& entry) {
+        unsigned int reqSpace = sizeof(entry.getPageNum());
         switch (_keyType) {
             case TypeInt:
             case TypeReal:

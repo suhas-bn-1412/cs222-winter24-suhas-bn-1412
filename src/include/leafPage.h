@@ -76,7 +76,7 @@ namespace PeterDB {
          */
         int compare(const RidAndKey& first, const RidAndKey& second);
 
-        bool getRequiredSpace(const RidAndKey& entry);
+        unsigned int getRequiredSpace(const RidAndKey& entry);
 
         bool canInsert(const RidAndKey& entry);
 

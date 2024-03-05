@@ -110,8 +110,8 @@ namespace PeterDB {
         return 0;
     }
 
-    bool LeafPage::getRequiredSpace(const RidAndKey& entry) {
-        auto reqSpace = sizeof(RID);
+    unsigned int LeafPage::getRequiredSpace(const RidAndKey& entry) {
+        unsigned int reqSpace = sizeof(RID);
         switch (_keyType) {
             case TypeInt:
             case TypeReal:

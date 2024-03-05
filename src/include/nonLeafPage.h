@@ -93,7 +93,7 @@ namespace PeterDB {
 
         int findNextPage(const RidAndKey& entry);
 
-        bool getRequiredSpace(const PageNumAndKey& entry);
+        unsigned int getRequiredSpace(const PageNumAndKey& entry);
 
         bool canInsert(const PageNumAndKey& entry);
 

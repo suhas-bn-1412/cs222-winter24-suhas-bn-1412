@@ -201,7 +201,7 @@ namespace PeterDB {
             unsigned int newFreeByteCount = oldFreeByteCount + getKeySize(key, attribute);
             leafPage.setFreeByteCount(newFreeByteCount);
 
-            // 4) serialize and write-through the page back back to file to effect the delete operation
+            // 4) serialize and write-through the page back to file to effect the delete operation
             PageSerializer::toBytes(leafPage, pageData);
             writePage(pageData, pageNum, ixFileHandle);
         }
@@ -359,23 +359,35 @@ namespace PeterDB {
     }
 
     /*
+* Compares a search key with RidAndKey (handling all types)
+* Return value:
+* 0   : both the keys are equal
+* < 0 : 'searchKey' < ridAndKeyPair.get___Key()
+* > 0 : 'searchKey' > ridAndKeyPair.get___Key()
+*/
+    int IndexManager::keyCompare(const void *searchKey, const AttrType &searchKeyType,
+                                 const RidAndKey &ridAndKeyPair) {
+        const RID &sameRid = ridAndKeyPair.getRid();
+        return keyCompare(searchKey, sameRid, searchKeyType, ridAndKeyPair);
+    }
+
+    /*
     * Compares a search key with RidAndKey (handling all types)
     * Return value:
     * 0   : both the keys are equal
     * < 0 : 'searchKey' < ridAndKeyPair.get___Key()
     * > 0 : 'searchKey' > ridAndKeyPair.get___Key()
     */
-    int IndexManager::keyCompare(const void *searchKey, const RID searchRid, const AttrType& searchKeyType,
-                                 const RidAndKey& ridAndKeyPair) {
+    int IndexManager::keyCompare(const void *searchKey, const RID searchRid, const AttrType &searchKeyType,
+                                 const RidAndKey &ridAndKeyPair) {
+        bool doRidsMatch = isEqual(searchRid, ridAndKeyPair.getRid());
         switch (searchKeyType) {
             case TypeInt: {
                 int keyA;
                 memcpy((void *) &keyA, searchKey, sizeof(keyA));
                 const int keyB = ridAndKeyPair.getIntKey();
-                RID ridB = ridAndKeyPair.getRid();
                 if (keyA == keyB) {
-                    return 0;
-//                    return searchRid.pageNum == ridB.pageNum && searchRid.slotNum == ridB.slotNum;
+                    return (doRidsMatch) ? 0 : -1;
                 } else if (keyA < keyB) {
                     return -1;
                 } else {
@@ -387,11 +399,9 @@ namespace PeterDB {
                 float keyA;
                 memcpy((void *) &keyA, searchKey, sizeof(keyA));
                 float keyB = ridAndKeyPair.getFloatKey();
-                RID ridB = ridAndKeyPair.getRid();
                 if (keyA == keyB) {
-                    return searchRid.pageNum == ridB.pageNum && searchRid.slotNum == ridB.slotNum;
+                    return (doRidsMatch) ? 0 : -1;
                 } else if (keyA < keyB) {
-                    //todo: compare RIDs
                     return -1;
                 } else {
                     return 1;
@@ -399,8 +409,13 @@ namespace PeterDB {
             }
             case TypeVarChar: {
                 const std::string keyA = VarcharSerDes::deserialize(searchKey);
-                const std::string& keyB = ridAndKeyPair.getStringKey();
-                return strcmp(keyA.data(), keyB.data());
+                const std::string &keyB = ridAndKeyPair.getStringKey();
+                int strCmpResult = strcmp(keyA.data(), keyB.data());
+                if (strCmpResult == 0) {
+                    return (doRidsMatch) ? 0 : -1;
+                } else {
+                    return strCmpResult;
+                }
             }
             default:
                 ERROR("Illegal Attribute type");
@@ -408,6 +423,11 @@ namespace PeterDB {
         }
         assert(0);
         return 0;
+    }
+
+    bool IndexManager::isEqual(const RID &ridA, const RID& ridB) {
+        return ridA.pageNum == ridB.pageNum
+               && ridA.slotNum == ridB.slotNum;
     }
 
     unsigned int IndexManager::getKeySize(const void *key, const Attribute &attributeOfKey) {

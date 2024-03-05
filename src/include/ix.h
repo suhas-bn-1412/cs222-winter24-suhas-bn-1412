@@ -71,12 +71,22 @@ namespace PeterDB {
         static unsigned int getKeySize(const void *key, const Attribute &attributeOfKey);
 
         /*
-            * Compares a search key with RidAndKey (handling all types)
-            * Return value:
-            * 0   : both the keys are equal
-            * < 0 : 'searchKey' < pageNumAndKeyPair.get___Key()
-            * > 0 : 'searchKey' > pageNumAndKeyPair.get___Key()
-            */
+        * Compares a search key with RidAndKey (handling all types)
+        * Return value:
+        * 0   : both the keys are equal
+        * < 0 : 'searchKey' < ridAndKeyPair.get___Key()
+        * > 0 : 'searchKey' > ridAndKeyPair.get___Key()
+        */
+        static int keyCompare(const void *searchKey, const AttrType &searchKeyType,
+                                     const RidAndKey &ridAndKeyPair);
+
+        /*
+        * Compares a search key with RidAndKey (handling all types)
+        * Return value:
+        * 0   : both the keys are equal
+        * < 0 : 'searchKey' < pageNumAndKeyPair.get___Key()
+        * > 0 : 'searchKey' > pageNumAndKeyPair.get___Key()
+        */
         static int keyCompare(const void *searchKey, const RID searchRid, const AttrType& searchKeyType, const RidAndKey& ridAndKeyPair);
 
     protected:
@@ -103,6 +113,8 @@ namespace PeterDB {
         void loadPage(unsigned int pageNum, void *pageData, IXFileHandle &ixFileHandle) const;
 
         void writePage(const void *pageData, unsigned int pageNum, IXFileHandle &ixFileHandle) const;
+
+        static bool isEqual(const RID &ridA, const RID& ridB);
     };
 
     class IX_ScanIterator {

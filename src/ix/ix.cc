@@ -305,6 +305,9 @@ namespace PeterDB {
         for (auto ridAndKeyIter = ridAndKeyPairs.begin(); ridAndKeyIter != ridAndKeyPairs.end(); ridAndKeyIter++) {
             if (keyCompare(targetKey, targetRid, targetKeyAttribute.type, *ridAndKeyIter) == 0) {
                 ridAndKeyPairs.erase(ridAndKeyIter);
+                unsigned int oldFreeByteCount = leafPage.getFreeByteCount();
+                unsigned int newFreeByteCount = oldFreeByteCount + sizeof(RidAndKey); //todo: optimize for varchar keys
+                leafPage.setFreeByteCount(newFreeByteCount);
                 return 0;
             }
         }
@@ -469,6 +472,13 @@ namespace PeterDB {
             }
         }
 
+        if (wasPreviouslyReturnedEntryDeleted()) {
+            _nextElementPositionOnPage--; // elements in the vector would
+            // have been left-shifted by 1 to fill in the void of the
+            // deleted entry; so, the 'next' entry is now at
+            // the same position as the previous entry
+        }
+
         // if the next record is within the endKey
         const RidAndKey &nextRidAndKey = _currentLeafPage.getRidAndKeyPairs().at(_nextElementPositionOnPage);
         if (isWithinRange(nextRidAndKey)) {
@@ -479,6 +489,7 @@ namespace PeterDB {
             // else return IX EOF
             return IX_EOF;
         }
+        _currentPageKeysCount = _currentLeafPage.getNumKeys();
         return 0;
     }
 
@@ -491,6 +502,7 @@ namespace PeterDB {
         assert(PageDeserializer::isLeafPage(_pageData));
         PageDeserializer::toLeafPage(_pageData, _currentLeafPage);
         _nextElementPositionOnPage = 0;
+        _currentPageKeysCount = _currentLeafPage.getNumKeys();
     }
 
     void
@@ -554,8 +566,10 @@ namespace PeterDB {
                 memcpy(destKey, &srcKey, sizeof(srcKey));
             }
                 break;
-            case TypeVarChar:
-                //fixme
+            case TypeVarChar: {
+                const std::string &srcKey = srcRidAndKey.getStringKey();
+                VarcharSerDes::serialize(srcKey, destKey);
+            }
                 break;
         }
     }
@@ -578,6 +592,15 @@ namespace PeterDB {
             }
         }
         assert(1);
+    }
+
+    bool IX_ScanIterator::wasPreviouslyReturnedEntryDeleted() {
+        if (_currentPageKeysCount == _currentLeafPage.getNumKeys() + 1) {
+            _currentPageKeysCount--;
+            return true;
+        } else {
+            return false;
+        }
     }
 
     IXFileHandle::IXFileHandle() {

@@ -143,8 +143,8 @@ namespace PeterDB {
         void *_pageData;
         LeafPage _currentLeafPage;
         unsigned int _nextElementPositionOnPage; //todo: perhaps special handling for scan-delete keys
-        // maybe store 'leafPageKeysSize' and check each time for decrease, implying delete
-        // or store current/ nextRid
+        unsigned int _currentPageKeysCount;
+
         void * _endKey;
         AttrType _keyType;
         bool _shouldIncludeEndKey;
@@ -162,6 +162,8 @@ namespace PeterDB {
         unsigned int
         getIndex(LeafPage leafPage, const void *searchKey, const bool shouldIncludeSearchKey,
                  const AttrType &keyType);
+
+        bool wasPreviouslyReturnedEntryDeleted();
     };
 
     class IXFileHandle {

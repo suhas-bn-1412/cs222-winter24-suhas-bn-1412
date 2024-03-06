@@ -291,7 +291,7 @@ namespace PeterDB {
         }
 
         for (const auto &pageNumAndKey: pageNumAndKeyPairs) {
-            if (keyCompare(searchKey, attribute.type, pageNumAndKey) < 0 || &pageNumAndKey == &pageNumAndKeyPairs.back()) {
+            if (keyCompare(searchKey, attribute.type, pageNumAndKey) <= 0 || &pageNumAndKey == &pageNumAndKeyPairs.back()) {
                 return pageNumAndKey.getPageNum();
             }
         }

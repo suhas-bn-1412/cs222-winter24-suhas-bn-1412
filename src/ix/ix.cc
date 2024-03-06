@@ -194,7 +194,21 @@ namespace PeterDB {
         // 3) delete the (key, rid) entry from the leaf page, if it exists
         LeafPage leafPage;
         PageDeserializer::toLeafPage(pageData, leafPage);
-        RC rc = deleteFromPage(key, rid, attribute, leafPage);
+        bool continueToNextPage = false;
+        RC rc = deleteFromPage(key, rid, attribute, leafPage, continueToNextPage);
+
+        while (continueToNextPage && (-1 != leafPage.getNextPageNum())) {
+            // if not found, but the key spans into the next page, we need to check in next page
+            pageNum = (unsigned) leafPage.getNextPageNum();
+
+            memset(pageData, 0, PAGE_SIZE);
+
+            loadPage(pageNum, pageData, ixFileHandle);
+            PageDeserializer::toLeafPage(pageData, leafPage);
+
+            continueToNextPage = false;
+            rc = deleteFromPage(key, rid, attribute, leafPage, continueToNextPage);
+        }
         if (rc == 0) {
             // update freeByteCount
             unsigned int oldFreeByteCount = leafPage.getFreeByteCount();
@@ -298,28 +312,40 @@ namespace PeterDB {
     }
 
     RC IndexManager::deleteFromPage(const void *targetKey, const RID &targetRid,
-                                    const Attribute &targetKeyAttribute, PeterDB::LeafPage &leafPage) {
+                                    const Attribute &targetKeyAttribute,
+                                    PeterDB::LeafPage &leafPage, bool& continueToNextPage) {
         std::vector<RidAndKey> &ridAndKeyPairs = leafPage.getRidAndKeyPairs();
         std::vector<RidAndKey> updatedPairs;
 
+        int numEntries = ridAndKeyPairs.size();
+        if (0 == numEntries) {
+            continueToNextPage = true;
+            return 0;
+        }
+        else if (keyCompare(targetKey, targetRid, targetKeyAttribute.type, ridAndKeyPairs[numEntries-1]) == 0) {
+            continueToNextPage = true;
+        }
+
+        bool found = false;
         for (auto ridAndKeyIter = ridAndKeyPairs.begin(); ridAndKeyIter != ridAndKeyPairs.end(); ++ridAndKeyIter) {
             if (keyCompare(targetKey, targetRid, targetKeyAttribute.type, *ridAndKeyIter) == 0) {
                 // Skip the element to be deleted
+                found = true;
                 continue;
             }
             updatedPairs.push_back(*ridAndKeyIter);
         }
 
         // Check if the target key was found and deleted
-        if (updatedPairs.size() == ridAndKeyPairs.size()) {
-            // Target key was not found
-            return -1;
+        if (found) {
+            // Replace the original vector with the updated one
+            continueToNextPage = false;
+            ridAndKeyPairs = std::move(updatedPairs);
+            leafPage.resetMetadata();
+            return 0;
         }
 
-        // Replace the original vector with the updated one
-        ridAndKeyPairs = std::move(updatedPairs);
-        leafPage.resetMetadata();
-        return 0;
+        return (continueToNextPage ? 0 : -1);
     }
 
     /*

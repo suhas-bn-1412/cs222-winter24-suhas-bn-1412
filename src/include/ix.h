@@ -99,7 +99,9 @@ namespace PeterDB {
 
         static unsigned int getLowerLevelNode(const void *searchKey, const Attribute &attribute, const void* pageData);
 
-        static RC deleteFromPage(const void *targetKey, const RID &targetRid, const Attribute &targetKeyAttribute, PeterDB::LeafPage &leafPage);
+        static RC deleteFromPage(const void *targetKey, const RID &targetRid,
+                                 const Attribute &targetKeyAttribute,
+                                 PeterDB::LeafPage &leafPage, bool& continueToNextPage);
 
         /*
          * Compares a search key with PageNumAndKey (handling all types)

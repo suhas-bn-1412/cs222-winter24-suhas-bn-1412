@@ -74,15 +74,14 @@
 
 ### 5. Describe the following operation logic.
 - Split
-
+  - LeafPages - When leafpage is full and we can't insert any more entries, we create new leaf page, and move half the entries from the first page to the new leaf page. Then promote the first node in the new leaf page as the guide node to the internal node
 
 
 - Rotation (if applicable)
-
+  - NonLeafPages - When non leaf page is full, we create new non leaf page, move half the entries from first non leaf page to the new non leaf page. Move the keys and page pointers. Then the first key in the new non leaf node is removed and promoted up as guide node to the internal node in upper layer
 
 
 - Merge/non-lazy deletion (if applicable)
-
 
 
 - Duplicate key span in a page
@@ -91,6 +90,7 @@
 
 
 - Duplicate key span multiple pages (if applicable)
+  - During deletion, we follow the guide node in the internal nodes to leaf node. If leaf node contains the key-rid pair to be deleted, then we delete it and return. If the key-rid pair is not deleted, but last entry in the leaf node has the same key, then it means that key spans multiple pages. So we check the next leaf page to delete the same key-rid pair.
 
 
 

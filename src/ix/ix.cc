@@ -209,6 +209,9 @@ namespace PeterDB {
             continueToNextPage = false;
             rc = deleteFromPage(key, rid, attribute, leafPage, continueToNextPage);
         }
+        if (continueToNextPage && (-1 == leafPage.getNextPageNum())) {
+            return -1;
+        }
         if (rc == 0) {
             // update freeByteCount
             unsigned int oldFreeByteCount = leafPage.getFreeByteCount();
@@ -345,7 +348,7 @@ namespace PeterDB {
             return 0;
         }
 
-        return (continueToNextPage ? 0 : -1);
+        return -1;
     }
 
     /*

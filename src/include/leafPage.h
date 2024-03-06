@@ -80,7 +80,7 @@ namespace PeterDB {
 
         bool canInsert(const RidAndKey& entry);
 
-        void insertEntry(const RidAndKey& entry, bool force);
+        void insertEntry(const RidAndKey entry, bool force);
 
         void resetMetadata();
     };

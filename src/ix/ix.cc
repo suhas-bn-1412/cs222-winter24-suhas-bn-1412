@@ -201,9 +201,7 @@ namespace PeterDB {
             unsigned int newFreeByteCount = oldFreeByteCount + getKeySize(key, attribute);
             leafPage.setFreeByteCount(newFreeByteCount);
 
-            // 4) serialize and write-through the page back to file to effect the delete operation
-            PageSerializer::toBytes(leafPage, pageData);
-            writePage(pageData, pageNum, ixFileHandle);
+            assert(0 == writePageToDisk(ixFileHandle, leafPage, pageNum));
         }
         free(pageData);
         return rc;
@@ -299,19 +297,29 @@ namespace PeterDB {
         return 0;
     }
 
-    RC IndexManager::deleteFromPage(const void *targetKey, const RID &targetRid, const Attribute &targetKeyAttribute,
-                                    PeterDB::LeafPage &leafPage) {
+    RC IndexManager::deleteFromPage(const void *targetKey, const RID &targetRid,
+                                    const Attribute &targetKeyAttribute, PeterDB::LeafPage &leafPage) {
         std::vector<RidAndKey> &ridAndKeyPairs = leafPage.getRidAndKeyPairs();
-        for (auto ridAndKeyIter = ridAndKeyPairs.begin(); ridAndKeyIter != ridAndKeyPairs.end(); ridAndKeyIter++) {
+        std::vector<RidAndKey> updatedPairs;
+
+        for (auto ridAndKeyIter = ridAndKeyPairs.begin(); ridAndKeyIter != ridAndKeyPairs.end(); ++ridAndKeyIter) {
             if (keyCompare(targetKey, targetRid, targetKeyAttribute.type, *ridAndKeyIter) == 0) {
-                ridAndKeyPairs.erase(ridAndKeyIter);
-                unsigned int oldFreeByteCount = leafPage.getFreeByteCount();
-                unsigned int newFreeByteCount = oldFreeByteCount + sizeof(RidAndKey); //todo: optimize for varchar keys
-                leafPage.setFreeByteCount(newFreeByteCount);
-                return 0;
+                // Skip the element to be deleted
+                continue;
             }
+            updatedPairs.push_back(*ridAndKeyIter);
         }
-        return -1;
+
+        // Check if the target key was found and deleted
+        if (updatedPairs.size() == ridAndKeyPairs.size()) {
+            // Target key was not found
+            return -1;
+        }
+
+        // Replace the original vector with the updated one
+        ridAndKeyPairs = std::move(updatedPairs);
+        leafPage.resetMetadata();
+        return 0;
     }
 
     /*
@@ -689,7 +697,7 @@ IXFileHandle::~IXFileHandle() {
         // move the data to page2
         int elementsToMove = page1.getRidAndKeyPairs().size() / 2;
 
-        auto tmpVec = page1.getRidAndKeyPairs();
+        std::vector<RidAndKey> tmpVec = page1.getRidAndKeyPairs();
         std::vector<RidAndKey>& vector1 = page1.getRidAndKeyPairs();
         std::vector<RidAndKey>& vector2 = page2.getRidAndKeyPairs();
 
@@ -728,25 +736,24 @@ IXFileHandle::~IXFileHandle() {
         // move the data to page2
         int elementsToMove = page1.getPageNumAndKeys().size() / 2;
 
-        auto tmpVec = page1.getPageNumAndKeys();
-        page1.getPageNumAndKeys().clear();
-        page1.getPageNumAndKeys().insert(page1.getPageNumAndKeys().end(),
-                                         tmpVec.begin(),
-                                         tmpVec.begin() + elementsToMove);
-        page2.getPageNumAndKeys().clear();
-        page2.getPageNumAndKeys().insert(page2.getPageNumAndKeys().end(),
-                                         tmpVec.begin() + elementsToMove,
-                                         tmpVec.end());
+        std::vector<PageNumAndKey> tmpVec = page1.getPageNumAndKeys();
+        std::vector<PageNumAndKey>& vector1 = page1.getPageNumAndKeys();
+        std::vector<PageNumAndKey>& vector2 = page2.getPageNumAndKeys();
+
+        vector1.clear();
+        vector1.insert(vector1.end(), tmpVec.begin(), tmpVec.begin() + elementsToMove);
+        
+        vector2.clear();
+        vector2.insert(vector2.end(), tmpVec.begin() + elementsToMove, tmpVec.end());
 
         // return lowest in page2 as guide node to caller
-        PageNumAndKey guideNode;
-        auto guideNodeData = page2.getPageNumAndKeys().front();
+        PageNumAndKey guideNode = vector2.front();
 
         // remove the first element in the page2, and add that pagenum as last element
         // in the page1. just add the pageNum, and not the key.. since that's how
         // the last entry in every non-leaf node is stored as
-        page1.getPageNumAndKeys().push_back(PageNumAndKey(guideNodeData.getPageNum()));
-        page2.getPageNumAndKeys().erase(page2.getPageNumAndKeys().begin());
+        vector1.push_back(PageNumAndKey(guideNode.getPageNum()));
+        vector2.erase(vector2.begin());
 
         // set the metadata properly
         page1.resetMetadata();
@@ -755,11 +762,11 @@ IXFileHandle::~IXFileHandle() {
         // we dont know the new page number, the caller should set that
         switch (page2.getKeyType()) {
             case TypeInt:
-                return PageNumAndKey(0, guideNodeData.getIntKey());
+                return PageNumAndKey(0, guideNode.getIntKey());
             case TypeReal:
-                return PageNumAndKey(0, guideNodeData.getFloatKey());
+                return PageNumAndKey(0, guideNode.getFloatKey());
             case TypeVarChar:
-                return PageNumAndKey(0, guideNodeData.getStringKey());
+                return PageNumAndKey(0, guideNode.getStringKey());
         }
         assert(0);
         return PageNumAndKey();

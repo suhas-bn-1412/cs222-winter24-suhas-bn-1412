@@ -224,7 +224,23 @@ namespace PeterDB {
             }
         }
 
-        _pageNumAndKeys.insert(_pageNumAndKeys.begin() + insertIdx, guideKey);
+        // Copy elements from the original vector to the new one until the insertion point
+        std::vector<PageNumAndKey> updatedEntries;
+        updatedEntries.reserve(_pageNumAndKeys.size() + 1);
+        std::copy(_pageNumAndKeys.begin(),
+                  _pageNumAndKeys.begin() + insertIdx,
+                  std::back_inserter(updatedEntries));
+
+        // Insert the new entry
+        updatedEntries.push_back(guideKey);
+
+        // Copy the remaining elements after the insertion point
+        std::copy(_pageNumAndKeys.begin() + insertIdx,
+                  _pageNumAndKeys.end(),
+                  std::back_inserter(updatedEntries));
+
+        // Replace the original vector with the updated one
+        _pageNumAndKeys = std::move(updatedEntries);
 
         // now swap the page pointers of inserted index and next index
         // if the order was 1-10-2-20-3-$, and we inserted key 15 with

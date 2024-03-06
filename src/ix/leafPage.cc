@@ -131,7 +131,7 @@ namespace PeterDB {
         return (_freeByteCount >= reqSpace);
     }
 
-    void LeafPage::insertEntry(const RidAndKey& entry, bool force) {
+    void LeafPage::insertEntry(const RidAndKey entry, bool force) {
         // force is used when there'll be split after insert
         // so dont bother sanity checks or updating the metadata
         // if not force, assert there is enough space
@@ -149,7 +149,23 @@ namespace PeterDB {
             }
         }
 
-        _ridAndKeyPairs.insert(_ridAndKeyPairs.begin() + insertIdx, entry);
+        // Copy elements from the original vector to the new one until the insertion point
+        std::vector<RidAndKey> updatedEntries;
+        updatedEntries.reserve(_ridAndKeyPairs.size() + 1);
+        std::copy(_ridAndKeyPairs.begin(),
+                  _ridAndKeyPairs.begin() + insertIdx,
+                  std::back_inserter(updatedEntries));
+
+        // Insert the new entry
+        updatedEntries.push_back(entry);
+
+        // Copy the remaining elements after the insertion point
+        std::copy(_ridAndKeyPairs.begin() + insertIdx,
+                  _ridAndKeyPairs.end(),
+                  std::back_inserter(updatedEntries));
+
+        // Replace the original vector with the updated one
+        _ridAndKeyPairs = std::move(updatedEntries);
         
         // if not force, set the metadata properly
         if (!force) _freeByteCount -= getRequiredSpace(entry);

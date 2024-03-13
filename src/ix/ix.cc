@@ -104,7 +104,7 @@ namespace PeterDB {
             ixFileHandle.fetchRootNodePtrFromDisk();
         }
 
-        if (0 == ixFileHandle._rootPagePtr) {
+        if (0 == ixFileHandle._rootPageNum) {
             // root page is not created yet, so create a new one and write
             // that to the disk. when first root node is created it will be
             // a LeafPage
@@ -115,14 +115,14 @@ namespace PeterDB {
             assert(0 == writePageToDisk(ixFileHandle, leafPage, -1 /* create page and insert */));
             assert(newPageNum == ixFileHandle._pfmFileHandle.getNextPageNum()-1);
 
-            ixFileHandle._rootPagePtr = newPageNum;
+            ixFileHandle._rootPageNum = newPageNum;
             ixFileHandle.writeRootNodePtrToDisk();
         }
 
         RidAndKey entryToInsert = createEntryToInsert(attribute, key, rid);
 
         PageNumAndKey newChild;
-        if (0 != insertHelper(ixFileHandle, ixFileHandle._rootPagePtr, entryToInsert, newChild)) {
+        if (0 != insertHelper(ixFileHandle, ixFileHandle._rootPageNum, entryToInsert, newChild)) {
             ERROR("Error while inserting entry into b+ tree in the file %s\n", ixFileHandle._fileName.c_str());
             return -1;
         }
@@ -143,15 +143,15 @@ namespace PeterDB {
 
             switch (attribute.type) {
                 case TypeInt:
-                    entry1 = PageNumAndKey(ixFileHandle._rootPagePtr, newChild.getIntKey());
+                    entry1 = PageNumAndKey(ixFileHandle._rootPageNum, newChild.getIntKey());
                     entry2 = PageNumAndKey(newChild.getPageNum(), 0);
                     break;
                 case TypeReal:
-                    entry1 = PageNumAndKey(ixFileHandle._rootPagePtr, newChild.getFloatKey());
+                    entry1 = PageNumAndKey(ixFileHandle._rootPageNum, newChild.getFloatKey());
                     entry2 = PageNumAndKey(newChild.getPageNum(), float(0));
                     break;
                 case TypeVarChar:
-                    entry1 = PageNumAndKey(ixFileHandle._rootPagePtr, newChild.getStringKey());
+                    entry1 = PageNumAndKey(ixFileHandle._rootPageNum, newChild.getStringKey());
                     entry2 = PageNumAndKey(newChild.getPageNum(), "");
                     break;
             }
@@ -166,7 +166,7 @@ namespace PeterDB {
             assert(0 == writePageToDisk(ixFileHandle, newRoot, -1 /* create page and insert */));
             assert(newRootPageNum == ixFileHandle._pfmFileHandle.getNextPageNum()-1);
 
-            ixFileHandle._rootPagePtr = newRootPageNum;
+            ixFileHandle._rootPageNum = newRootPageNum;
             ixFileHandle.writeRootNodePtrToDisk();
         }
         return 0;
@@ -181,7 +181,7 @@ namespace PeterDB {
         unsigned int pageNum;
 
         ixFileHandle.fetchRootNodePtrFromDisk();
-        pageNum = ixFileHandle._rootPagePtr;
+        pageNum = ixFileHandle._rootPageNum;
         loadPage(pageNum, pageData, ixFileHandle);
 
         // 2) recursively search for the leaf node that should contain the given (key, rid)
@@ -257,7 +257,7 @@ namespace PeterDB {
         //todo:
         // 1) get root pageNum and load the root page
         ixFileHandle.fetchRootNodePtrFromDisk();
-        pageNum = ixFileHandle._rootPagePtr;
+        pageNum = ixFileHandle._rootPageNum;
         loadPage(pageNum, pageData, ixFileHandle);
 
         // 2) recursively search for the leaf node that should contain the given lowKey
@@ -276,19 +276,19 @@ namespace PeterDB {
     }
 
     RC IndexManager::printBTree(IXFileHandle &ixFileHandle, const Attribute &attribute, std::ostream &out) const {
-        if (0 == ixFileHandle._rootPagePtr) {
+        if (0 == ixFileHandle._rootPageNum) {
             ixFileHandle.fetchRootNodePtrFromDisk();
 
-            assert(0 != ixFileHandle._rootPagePtr);
+            assert(0 != ixFileHandle._rootPageNum);
         }
 
         switch (attribute.type) {
             case TypeInt:
-                return intPrinter(ixFileHandle, ixFileHandle._rootPagePtr, out);
+                return intPrinter(ixFileHandle, ixFileHandle._rootPageNum, out);
             case TypeReal:
-                return floatPrinter(ixFileHandle, ixFileHandle._rootPagePtr, out);
+                return floatPrinter(ixFileHandle, ixFileHandle._rootPageNum, out);
             case TypeVarChar:
-                return varcharPrinter(ixFileHandle, ixFileHandle._rootPagePtr, out);
+                return varcharPrinter(ixFileHandle, ixFileHandle._rootPageNum, out);
         }
         assert(0);
         return 0;
@@ -668,7 +668,7 @@ IXFileHandle::~IXFileHandle() {
             return;
         }
 
-        _rootPagePtr = *( (unsigned int*) data);
+        _rootPageNum = *( (unsigned int*) data);
         free(data);
     }
 
@@ -677,7 +677,7 @@ IXFileHandle::~IXFileHandle() {
         assert(nullptr != data);
         memset(data, 0, PAGE_SIZE);
 
-        memmove(data, &_rootPagePtr, sizeof(unsigned int));
+        memmove(data, &_rootPageNum, sizeof(unsigned int));
 
         if (0 != _pfmFileHandle.writePage(0, data)) {
             ERROR("Error while writing Head pointer of the index file %s\n", _fileName.c_str());

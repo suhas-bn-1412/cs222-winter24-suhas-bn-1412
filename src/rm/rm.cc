@@ -1,5 +1,5 @@
 #include "src/include/rm.h"
-#include "src/include/catalogueConstants.h"
+#include "src/include/ix.h"
 #include "src/include/attributeAndValueSerializer.h"
 
 namespace PeterDB {
@@ -7,6 +7,9 @@ namespace PeterDB {
         static RelationManager _relation_manager = RelationManager();
         if (nullptr == _relation_manager.m_rbfm) {
             _relation_manager.m_rbfm = &RecordBasedFileManager::instance();
+        }
+        if (_relation_manager._m_ix == nullptr) {
+            _relation_manager._m_ix = &(IndexManager::instance());
         }
         return _relation_manager;
     }
@@ -543,23 +546,76 @@ namespace PeterDB {
     }
 
     // QE IX related
-    RC RelationManager::createIndex(const std::string &tableName, const std::string &attributeName){
-        return -1;
+    RC RelationManager::createIndex(const std::string &tableName, const std::string &attributeName) {
+        // check if index already exists (currently, just check for filename on disk)
+        if (doesIndexExist(tableName, attributeName)) {
+            ERROR("Index for table=%s, attribute=%s already exists",
+                  tableName.data(), attributeName.data());
+            return -1;
+        }
+
+        // IndexFilename format: <tableName>_<attrName>_index
+        const std::string indexFileName = buildIndexFilename(tableName, attributeName);
+        return _m_ix->createFile(indexFileName);
     }
 
-    RC RelationManager::destroyIndex(const std::string &tableName, const std::string &attributeName){
-        return -1;
+    RC RelationManager::destroyIndex(const std::string &tableName, const std::string &attributeName) {
+        // check if index even exists (currently, just check for filename on disk)
+        if (!doesIndexExist(tableName, attributeName)) {
+            ERROR("Index for table=%s, attribute=%s does not even exist",
+                  tableName.data(), attributeName.data());
+            return -1;
+        }
+
+        const std::string indexFileName = buildIndexFilename(tableName, attributeName);
+        return _m_ix->destroyFile(indexFileName);
     }
 
     // indexScan returns an iterator to allow the caller to go through qualified entries in index
     RC RelationManager::indexScan(const std::string &tableName,
-                 const std::string &attributeName,
-                 const void *lowKey,
-                 const void *highKey,
-                 bool lowKeyInclusive,
-                 bool highKeyInclusive,
-                 RM_IndexScanIterator &rm_IndexScanIterator){
-        return -1;
+                                  const std::string &attributeName,
+                                  const void *lowKey,
+                                  const void *highKey,
+                                  bool lowKeyInclusive,
+                                  bool highKeyInclusive,
+                                  RM_IndexScanIterator &rm_IndexScanIterator) {
+        /*
+         * wrapper around ix.scan()
+         */
+
+        // check if index even exists (currently, just check for filename on disk)
+        if (!doesIndexExist(tableName, attributeName)) {
+            ERROR("Index for table=%s, attribute=%s does not even exist",
+                  tableName.data(), attributeName.data());
+            return -1;
+        }
+
+        // open the file associated with this index
+        const std::string indexFilename = buildIndexFilename(tableName, attributeName);
+        IXFileHandle &ixFileHandle = rm_IndexScanIterator.getIxFileHandle();
+        _m_ix->openFile(indexFilename, ixFileHandle);
+
+        rm_IndexScanIterator.getIxScanIterator().init(&ixFileHandle,
+                                                      ixFileHandle._rootPageNum,
+                                                      lowKey,
+                                                      lowKeyInclusive,
+                                                      highKey,
+                                                      highKeyInclusive,
+                                                      getAttribute(tableName, attributeName));
+        return 0;
+    }
+
+    Attribute RelationManager::getAttribute(const std::string &tableName, const std::string &attributeName) {
+        std::vector<Attribute> tableAttributes;
+        getAttributes(tableName, tableAttributes);
+        for (const Attribute &attribute: tableAttributes) {
+            if (strcmp(attribute.name.data(), attributeName.data()) == 0) {
+                return attribute;
+            }
+        }
+        ERROR("Table=%s contains no attribute named %s\n",
+              tableName, attributeName);
+        return {};
     }
 
     void RelationManager::initTablesTable() {
@@ -709,6 +765,15 @@ namespace PeterDB {
         m_rbfm->closeFile(attributesTblFileHandle);
     }
 
+    std::string RelationManager::buildIndexFilename(const std::string &tableName, const std::string &attributeName) {
+        return tableName + "_" + attributeName + "_index";
+    }
+
+    bool RelationManager::doesIndexExist(const std::string &tableName, const std::string &attributeName) {
+        const std::string indexFilename = buildIndexFilename(tableName, attributeName);
+        return file_exists(indexFilename);
+    }
+
     RM_IndexScanIterator::RM_IndexScanIterator() = default;
 
     RM_IndexScanIterator::~RM_IndexScanIterator() = default;
@@ -719,6 +784,22 @@ namespace PeterDB {
 
     RC RM_IndexScanIterator::close(){
         return -1;
+    }
+
+    IX_ScanIterator &RM_IndexScanIterator::getIxScanIterator() {
+        return _m_ix_scan_iterator;
+    }
+
+    void RM_IndexScanIterator::setIxScanIterator(const IX_ScanIterator &mIxScanIterator) {
+        _m_ix_scan_iterator = mIxScanIterator;
+    }
+
+    void RM_IndexScanIterator::setIxFileHandle(const IXFileHandle &mIxFileHandle) {
+        _m_ix_fileHandle = mIxFileHandle;
+    }
+
+    IXFileHandle &RM_IndexScanIterator::getIxFileHandle(){
+        return _m_ix_fileHandle;
     }
 
 } // namespace PeterDB

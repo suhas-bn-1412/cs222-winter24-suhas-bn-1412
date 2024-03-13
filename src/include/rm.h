@@ -6,6 +6,8 @@
 #include <unordered_map>
 
 #include "src/include/rbfm.h"
+#include "src/include/ix.h"
+#include "src/include/catalogueConstants.h"
 #include "attributeAndValue.h"
 
 namespace PeterDB {
@@ -50,6 +52,18 @@ namespace PeterDB {
         // "key" follows the same format as in IndexManager::insertEntry()
         RC getNextEntry(RID &rid, void *key);    // Get next matching entry
         RC close();                              // Terminate index scan
+
+        IXFileHandle &getIxFileHandle();
+
+        IX_ScanIterator &getIxScanIterator();
+
+        void setIxScanIterator(const IX_ScanIterator &mIxScanIterator);
+
+        void setIxFileHandle(const IXFileHandle &mIxFileHandle);
+
+    private:
+        IXFileHandle _m_ix_fileHandle;
+        IX_ScanIterator _m_ix_scan_iterator;
     };
 
     // Relation Manager
@@ -120,6 +134,7 @@ namespace PeterDB {
 
         bool m_catalogCreated = false;
         RecordBasedFileManager *m_rbfm = nullptr;
+        IndexManager *_m_ix = nullptr;
         std::unordered_map<std::string, bool> m_tablesCreated;
 
         // opens both Tables table and Attributes table
@@ -136,6 +151,12 @@ namespace PeterDB {
         int computeNextTableId();
 
         void buildAndInsertAttributesIntoAttributesTable(const std::vector<Attribute> &attrs, int tid);
+
+        static std::string buildIndexFilename(const std::string &tableName, const std::string &attributeName);
+
+        static bool doesIndexExist(const std::string &tableName, const std::string &attributeName);
+
+        Attribute getAttribute(const std::string &tableName, const std::string &attributeName);
     };
 
 } // namespace PeterDB

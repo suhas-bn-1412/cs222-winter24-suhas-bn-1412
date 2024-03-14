@@ -2,6 +2,8 @@
 
 namespace PeterDB {
     Filter::Filter(Iterator *input, const Condition &condition) {
+        m_input_iter = input;
+        m_condition = condition;
     }
 
     Filter::~Filter() {
@@ -9,11 +11,11 @@ namespace PeterDB {
     }
 
     RC Filter::getNextTuple(void *data) {
-        return -1;
+
     }
 
     RC Filter::getAttributes(std::vector<Attribute> &attrs) const {
-        return -1;
+        return m_input_iter->getAttributes(attrs);
     }
 
     Project::Project(Iterator *input, const std::vector<std::string> &attrNames) {

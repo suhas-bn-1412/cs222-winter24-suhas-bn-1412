@@ -12,6 +12,8 @@ namespace PeterDB {
 
     RC Filter::getNextTuple(void *data) {
 
+
+        return -1;
     }
 
     RC Filter::getAttributes(std::vector<Attribute> &attrs) const {

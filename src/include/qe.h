@@ -22,7 +22,64 @@ namespace PeterDB {
 
     typedef struct Value {
         AttrType type;          // type of value
-        void *data;             // value
+        void *data = nullptr;   // value
+
+        Value() {}
+
+        Value(AttrType t, void* d) {
+            type = t;
+
+            if (nullptr != d) {
+                int dataLen = 4;
+                if (TypeVarChar == t) {
+                    dataLen += *((uint32_t*)d);
+                }
+
+                data = malloc(dataLen);
+                assert(nullptr != data);
+                memmove(data, d, dataLen);
+            }
+        }
+
+        // copy constructor
+        Value(const Value& other) {
+            type = other.type;
+
+            if (nullptr != other.data) {
+                int dataLen = 4;
+                if (TypeVarChar == type) {
+                    dataLen += *((uint32_t*)other.data);
+                }
+
+                data = malloc(dataLen);
+                assert(nullptr != data);
+                memmove(data, other.data, dataLen);
+            }
+        }
+
+        Value& operator=(const Value& other) {
+            type = other.type;
+
+            if (nullptr != other.data) {
+                int dataLen = 4;
+                if (TypeVarChar == type) {
+                    dataLen += *((uint32_t*)other.data);
+                }
+
+                data = malloc(dataLen);
+                assert(nullptr != data);
+                memmove(data, other.data, dataLen);
+            }
+            return *this;
+        }
+
+        ~Value() {
+            if (nullptr != data) {
+                free(data);
+                data = nullptr;
+            }
+        }
+
     } Value;
 
     typedef struct Condition {
@@ -179,6 +236,20 @@ namespace PeterDB {
 
     class Project : public Iterator {
         // Projection operator
+    private:
+        bool m_eof = false;
+        Iterator* m_iterator = nullptr;
+        std::vector<std::string> m_projectedAttrNames;
+        std::vector<Attribute> m_allAttributes;
+        std::vector<Attribute> m_projectedAttrDefs;
+
+        // store projected attribute definition and where to find the projected attribute
+        // in the tuple which we get from iterator.getNextTuple
+        std::unordered_map<std::string, std::pair<Attribute, int>> m_projectedAttrs;
+
+        int m_maxSpaceRequired = 0;
+        void* m_tupleData = nullptr;
+
     public:
         Project(Iterator *input,                                // Iterator of input R
                 const std::vector<std::string> &attrNames);     // std::vector containing attribute names

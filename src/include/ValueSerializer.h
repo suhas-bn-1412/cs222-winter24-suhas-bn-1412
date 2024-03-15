@@ -17,11 +17,6 @@ namespace PeterDB {
          */
         static void serialize(const std::vector<Value> &values, void *data);
 
-        /*
-         * Frees up the memory malloc'd to each value's data
-         */
-        static void destroy(const std::vector<Value>& values);
-
     private:
         static unsigned int computeNullFlagSizeBytes(const unsigned long numAttributes);
 

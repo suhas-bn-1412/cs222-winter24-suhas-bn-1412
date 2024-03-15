@@ -1,4 +1,6 @@
 #include "src/include/qe.h"
+#include "src/include/ValueSerializer.h"
+#include "src/include/ValueDeserializer.h"
 
 namespace PeterDB {
     Filter::Filter(Iterator *input, const Condition &condition) {
@@ -21,19 +23,81 @@ namespace PeterDB {
     }
 
     Project::Project(Iterator *input, const std::vector<std::string> &attrNames) {
+        m_iterator = input;
+        m_projectedAttrNames = attrNames;
 
+        m_allAttributes.clear();
+        m_projectedAttrs.clear();
+
+        Attribute dummyAttr;
+
+        for (auto& attrName: attrNames) {
+            m_projectedAttrs[attrName] = std::make_pair(dummyAttr, 0);
+        }
+        
+        m_iterator->getAttributes(m_allAttributes);
+
+        int idxOfProjectedAttrInRecord = 0;
+        for (auto &attr: m_allAttributes) {
+            if (m_projectedAttrs.end() != m_projectedAttrs.find(attr.name)) {
+                m_projectedAttrs[attr.name] = std::make_pair(attr, idxOfProjectedAttrInRecord);
+            }
+            m_maxSpaceRequired += 4;
+            if (TypeVarChar == attr.type) {
+                m_maxSpaceRequired += attr.length;
+            }
+            idxOfProjectedAttrInRecord++;
+        }
+
+        for (auto &attrName: attrNames) {
+            m_projectedAttrDefs.push_back(m_projectedAttrs[attrName].first);
+        }
+
+        // create the data which is used in every getNextTuple
+        // should be free'd in destructor
+        m_tupleData = malloc(m_maxSpaceRequired);
+        assert(nullptr != m_tupleData);
+        memset(m_tupleData, 0, m_maxSpaceRequired);
     }
 
     Project::~Project() {
-
+        m_iterator = nullptr;
+        free(m_tupleData);
+        m_tupleData = nullptr;
     }
 
     RC Project::getNextTuple(void *data) {
-        return -1;
+        // using the iterator get the next tuple
+        // then transform that data into vector of Value
+        // then only pick the projected attributes and put into new vector of Value
+        // then serialise that vector of Values into void* data
+        
+        if (m_eof) {
+            return QE_EOF;
+        }
+
+        if (QE_EOF == m_iterator->getNextTuple(m_tupleData)) {
+            m_eof = true;
+            return QE_EOF;
+        }
+
+        // serialize the data into vector of values
+        std::vector<Value> all_tuples;
+        ValueDeserializer::deserialize(m_tupleData, m_projectedAttrDefs, all_tuples);
+
+        std::vector<Value> projectedAttrValues;
+        for (auto attrName: m_projectedAttrNames) {
+            projectedAttrValues.emplace_back(all_tuples[m_projectedAttrs[attrName].second]);
+        }
+
+        ValueSerializer::serialize(projectedAttrValues, data);
+
+        return 0;
     }
 
     RC Project::getAttributes(std::vector<Attribute> &attrs) const {
-        return -1;
+        attrs = m_projectedAttrDefs;
+        return 0;
     }
 
     BNLJoin::BNLJoin(Iterator *leftIn, TableScan *rightIn, const Condition &condition, const unsigned int numPages) {

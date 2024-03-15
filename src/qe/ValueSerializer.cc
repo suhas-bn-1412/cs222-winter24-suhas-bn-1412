@@ -22,17 +22,6 @@ namespace PeterDB {
         concatAttributeValues(values, (byte *) data + nullFlagLenBytes);
     }
 
-    /*
-     * Frees up the memory malloc'd to each value's data
-     */
-
-    void ValueSerializer::destroy(const std::vector<Value>& values) {
-        for (const auto &value: values) {
-            assert(value.data != nullptr);
-            free(value.data);
-        }
-    }
-
     unsigned int ValueSerializer::computeNullFlagSizeBytes(const unsigned long numAttributes) {
         return ceil(numAttributes / NUM_BITS_PER_BYTE);
     }
@@ -61,6 +50,8 @@ namespace PeterDB {
                 return *((uint32_t *) &value);
                 break;
         }
+        assert(0);
+        return 0;
     }
 
     void ValueSerializer::computeAndAddNullFlag(const std::vector<Value> &values, void *data) {
@@ -72,7 +63,7 @@ namespace PeterDB {
         for (const auto &value: values) {
             if (value.data == nullptr) {
                 //todo: handle null fields
-                assert(1);
+                assert(0);
             }
 
             bitNum++;

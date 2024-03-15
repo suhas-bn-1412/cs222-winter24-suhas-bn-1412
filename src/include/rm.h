@@ -62,8 +62,8 @@ namespace PeterDB {
         void setIxFileHandle(const IXFileHandle &mIxFileHandle);
 
     private:
-        IXFileHandle _m_ix_fileHandle;
-        IX_ScanIterator _m_ix_scan_iterator;
+        IXFileHandle m_ix_fileHandle;
+        IX_ScanIterator m_ix_scan_iterator;
     };
 
     // Relation Manager
@@ -134,7 +134,7 @@ namespace PeterDB {
 
         bool m_catalogCreated = false;
         RecordBasedFileManager *m_rbfm = nullptr;
-        IndexManager *_m_ix = nullptr;
+        IndexManager *m_ix = nullptr;
         std::unordered_map<std::string, bool> m_tablesCreated;
 
         // opens both Tables table and Attributes table
@@ -152,11 +152,22 @@ namespace PeterDB {
 
         void buildAndInsertAttributesIntoAttributesTable(const std::vector<Attribute> &attrs, int tid);
 
+        std::pair<std::string, std::string> getTableAndAttrFromIndexFileName(const std::string& indexFname);
+
         static std::string buildIndexFilename(const std::string &tableName, const std::string &attributeName);
 
         static bool doesIndexExist(const std::string &tableName, const std::string &attributeName);
 
-        Attribute getAttribute(const std::string &tableName, const std::string &attributeName);
+        static void getIndexNames(const std::string& tableName, std::vector<std::string>& indexFiles);
+
+        Attribute getAttributeDefn(const std::string &tableName, const std::string &attributeName);
+
+        void insertIntoIndex(const std::string& tableName,
+                             const std::vector<Attribute>& attrs,
+                             const void* recordData, const RID& rid);
+        void deleteFromIndex(const std::string& tableName,
+                             const std::vector<Attribute>& attrs,
+                             const void* recordData, const RID& rid);
     };
 
 } // namespace PeterDB

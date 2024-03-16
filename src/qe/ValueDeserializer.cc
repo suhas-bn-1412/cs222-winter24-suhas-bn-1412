@@ -29,10 +29,10 @@ namespace PeterDB {
             const AttrType &attributeType = attributes.at(fieldNum).type;
             Value value;
             value.type = attributeType;
+            uint32_t attrValSize;
             if (isAttrNull.at(fieldNum)) {
                 value.data = nullptr;
             } else {
-                uint32_t attrValSize;
                 switch (attributeType) {
                     case TypeInt:
                         attrValSize = 4;

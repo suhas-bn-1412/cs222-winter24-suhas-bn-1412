@@ -25,26 +25,21 @@ namespace PeterDB {
                                               const std::vector<bool> &isAttrNull,
                                               std::vector<Value> &values) {
         const unsigned int numAttributes = isAttrNull.size();
+        uint32_t attrValSize = 0;
         for (int fieldNum = 0; fieldNum < numAttributes; ++fieldNum) {
             const AttrType &attributeType = attributes.at(fieldNum).type;
             Value value;
             value.type = attributeType;
-            uint32_t attrValSize;
+
+            attrValSize = 0;
             if (isAttrNull.at(fieldNum)) {
                 value.data = nullptr;
             } else {
-                switch (attributeType) {
-                    case TypeInt:
-                        attrValSize = 4;
-                    break;
-                    case TypeReal:
-                        attrValSize = 4;
-                    break;
-                    case TypeVarChar:
-                        memcpy(&attrValSize, data, sizeof(attrValSize));
-                    attrValSize += 4;
-                    break;
+                attrValSize = 4;
+                if (TypeVarChar == attributeType) {
+                    attrValSize += *((uint32_t*)data);
                 }
+
                 value.data = malloc(attrValSize);
                 assert(value.data != nullptr);
                 memcpy(&(value.data), data, attrValSize);

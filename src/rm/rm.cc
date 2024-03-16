@@ -2,14 +2,16 @@
 #include "src/include/ix.h"
 #include "src/include/attributeAndValueSerializer.h"
 
+#include <dirent.h>
+
 namespace PeterDB {
     RelationManager &RelationManager::instance() {
         static RelationManager _relation_manager = RelationManager();
         if (nullptr == _relation_manager.m_rbfm) {
             _relation_manager.m_rbfm = &RecordBasedFileManager::instance();
         }
-        if (_relation_manager._m_ix == nullptr) {
-            _relation_manager._m_ix = &(IndexManager::instance());
+        if (_relation_manager.m_ix == nullptr) {
+            _relation_manager.m_ix = &(IndexManager::instance());
         }
         return _relation_manager;
     }
@@ -352,6 +354,55 @@ namespace PeterDB {
         return 0;
     }
 
+    bool isAttrNull(const void *recordData, const uint16_t &attrNum) {
+        uint16_t q = (attrNum) / 8;
+        uint16_t r = (attrNum) % 8;
+
+        return (0 != (((char*)recordData)[q] & (1 << (7-r))));
+    }
+
+    void* getKeyFromRecord(const void* data, const std::vector<Attribute> attrs, const Attribute& attrToFetch) {
+
+        int nullFlagSize = ((attrs.size() + 7) / 8);
+        void* dataPtr = ((char*)data + nullFlagSize);
+
+        int attrIdx = 0, attrSize = 0;
+        for (auto &attr: attrs) {
+            bool isNull = isAttrNull(data, attrIdx);
+
+            if (!isNull) {
+                attrSize = 0;
+                switch (attr.type) {
+                    case TypeInt:
+                        attrSize = 4;
+                        break;
+                    case TypeReal:
+                        attrSize = 4;
+                        break;
+                    case TypeVarChar:
+                        attrSize = 4;
+                        attrSize += *((uint32_t*)dataPtr);
+                        break;
+                    default:
+                        assert(0);
+                        break;
+                }
+
+                if (attrToFetch.name == attr.name) {
+                    void* key = malloc(attrSize);
+                    assert(nullptr != key);
+
+                    memmove(key, dataPtr, attrSize);
+                    return key;
+                }
+
+                dataPtr = (void*) ((char*)dataPtr + attrSize);
+            }
+            attrIdx++;
+        }
+        return nullptr;
+    }
+
     RC RelationManager::insertTuple(const std::string &tableName, const void *data, RID &rid) {
         if (tableName == CatalogueConstants::TABLES_FILE_NAME ||
             tableName == CatalogueConstants::ATTRIBUTES_FILE_NAME) {
@@ -372,7 +423,38 @@ namespace PeterDB {
             return -1;
         }
         m_rbfm->closeFile(fh);
+
+        insertIntoIndex(tableName, attrs, data, rid);
+
         return 0;
+    }
+
+    void RelationManager::insertIntoIndex(const std::string& tableName,
+                                          const std::vector<Attribute>& attrs,
+                                          const void* recordData, const RID& rid) {
+        // insert the entry into indexes created on this table
+        std::vector<std::string> indexNames;
+        getIndexNames(tableName, indexNames);
+
+        std::string tableName_, attrName;
+        Attribute attrDef;
+        for (auto& indexFname: indexNames) {
+            // get Attribute from index name, and create the index key
+            // that needs to be inserted into the index file
+            std::tie(tableName_, attrName) = getTableAndAttrFromIndexFileName(indexFname);
+            assert(tableName == tableName_);
+
+            attrDef = getAttributeDefn(tableName, attrName);
+
+            void* key = getKeyFromRecord(recordData, attrs, attrDef);
+
+            IXFileHandle ixFileHandle;
+            m_ix->openFile(indexFname, ixFileHandle);
+            m_ix->insertEntry(ixFileHandle, attrDef, key, rid);
+            m_ix->closeFile(ixFileHandle);
+
+            free(key);
+        }
     }
 
     RC RelationManager::deleteTuple(const std::string &tableName, const RID &rid) {
@@ -389,13 +471,58 @@ namespace PeterDB {
             return -1;
         }
 
+        // before deleting the record, read the record to get the record data
+        // this is used to delete the entries in the index files
+        int maxSpaceRequired = 0;
+        for (auto &attr: attrs) {
+            maxSpaceRequired += 4;
+            if (TypeVarChar == attr.type) maxSpaceRequired += attr.length;
+        }
+        void* data = malloc(maxSpaceRequired);
+        assert(nullptr != data);
+        memset(data, 0, maxSpaceRequired);
+
+        assert(0 == readTuple(tableName, rid, data));
+
         if ( 0 != m_rbfm->deleteRecord(fh, attrs, rid)) {
             ERROR("Error while deleting the record from table %s", tableName);
             m_rbfm->closeFile(fh);
             return -1;
         }
         m_rbfm->closeFile(fh);
+
+        deleteFromIndex(tableName, attrs, data, rid);
+
+        free(data);
         return 0;
+    }
+
+    void RelationManager::deleteFromIndex(const std::string& tableName,
+                                          const std::vector<Attribute>& attrs,
+                                          const void* recordData, const RID& rid) {
+        // insert the entry into indexes created on this table
+        std::vector<std::string> indexNames;
+        getIndexNames(tableName, indexNames);
+
+        std::string tableName_, attrName;
+        Attribute attrDef;
+        for (auto& indexFname: indexNames) {
+            // get Attribute from index name, and create the index key
+            // that needs to be inserted into the index file
+            std::tie(tableName_, attrName) = getTableAndAttrFromIndexFileName(indexFname);
+            assert(tableName == tableName_);
+
+            attrDef = getAttributeDefn(tableName, attrName);
+
+            void* key = getKeyFromRecord(recordData, attrs, attrDef);
+
+            IXFileHandle ixFileHandle;
+            m_ix->openFile(indexFname, ixFileHandle);
+            m_ix->deleteEntry(ixFileHandle, attrDef, key, rid);
+            m_ix->closeFile(ixFileHandle);
+
+            free(key);
+        }
     }
 
     RC RelationManager::updateTuple(const std::string &tableName, const void *data, const RID &rid) {
@@ -412,12 +539,31 @@ namespace PeterDB {
             return -1;
         }
 
+        // before updating the record, read the record to get the record data
+        // this is used to delete the entries in the index files
+        int maxSpaceRequired = 0;
+        for (auto &attr: attrs) {
+            maxSpaceRequired += 4;
+            if (TypeVarChar == attr.type) maxSpaceRequired += attr.length;
+        }
+        void* oldRecordData = malloc(maxSpaceRequired);
+        assert(nullptr != data);
+        memset(oldRecordData, 0, maxSpaceRequired);
+
+        assert(0 == readTuple(tableName, rid, oldRecordData));
+
         if ( 0 != m_rbfm->updateRecord(fh, attrs, data, rid)) {
             ERROR("Error while updating the record in table %s", tableName);
             m_rbfm->closeFile(fh);
+            free(oldRecordData);
             return -1;
         }
         m_rbfm->closeFile(fh);
+
+        deleteFromIndex(tableName, attrs, oldRecordData, rid);
+        insertIntoIndex(tableName, attrs, data, rid);
+
+        free(oldRecordData);
         return 0;
     }
 
@@ -556,7 +702,7 @@ namespace PeterDB {
 
         // IndexFilename format: <tableName>_<attrName>_index
         const std::string indexFileName = buildIndexFilename(tableName, attributeName);
-        return _m_ix->createFile(indexFileName);
+        return m_ix->createFile(indexFileName);
     }
 
     RC RelationManager::destroyIndex(const std::string &tableName, const std::string &attributeName) {
@@ -568,7 +714,7 @@ namespace PeterDB {
         }
 
         const std::string indexFileName = buildIndexFilename(tableName, attributeName);
-        return _m_ix->destroyFile(indexFileName);
+        return m_ix->destroyFile(indexFileName);
     }
 
     // indexScan returns an iterator to allow the caller to go through qualified entries in index
@@ -593,7 +739,7 @@ namespace PeterDB {
         // open the file associated with this index
         const std::string indexFilename = buildIndexFilename(tableName, attributeName);
         IXFileHandle &ixFileHandle = rm_IndexScanIterator.getIxFileHandle();
-        _m_ix->openFile(indexFilename, ixFileHandle);
+        m_ix->openFile(indexFilename, ixFileHandle);
 
         rm_IndexScanIterator.getIxScanIterator().init(&ixFileHandle,
                                                       ixFileHandle._rootPageNum,
@@ -601,11 +747,11 @@ namespace PeterDB {
                                                       lowKeyInclusive,
                                                       highKey,
                                                       highKeyInclusive,
-                                                      getAttribute(tableName, attributeName));
+                                                      getAttributeDefn(tableName, attributeName));
         return 0;
     }
 
-    Attribute RelationManager::getAttribute(const std::string &tableName, const std::string &attributeName) {
+    Attribute RelationManager::getAttributeDefn(const std::string &tableName, const std::string &attributeName) {
         std::vector<Attribute> tableAttributes;
         getAttributes(tableName, tableAttributes);
         for (const Attribute &attribute: tableAttributes) {
@@ -769,9 +915,43 @@ namespace PeterDB {
         return tableName + "_" + attributeName + "_index";
     }
 
+    std::pair<std::string, std::string> RelationManager::getTableAndAttrFromIndexFileName(const std::string& indexFname) {
+        size_t firstUnderscore = indexFname.find('_');
+        size_t lastUnderscore = indexFname.rfind('_');
+
+        if (firstUnderscore == std::string::npos || lastUnderscore == std::string::npos || firstUnderscore == lastUnderscore) {
+            // Format does not match expected pattern
+            throw std::invalid_argument("Filename does not match expected format: tableName_attributeName_index");
+        }
+
+        std::string tableName = indexFname.substr(0, firstUnderscore);
+        std::string attributeName = indexFname.substr(firstUnderscore + 1, lastUnderscore - firstUnderscore - 1);
+
+        return {tableName, attributeName};
+    }
+
     bool RelationManager::doesIndexExist(const std::string &tableName, const std::string &attributeName) {
         const std::string indexFilename = buildIndexFilename(tableName, attributeName);
         return file_exists(indexFilename);
+    }
+
+    void RelationManager::getIndexNames(const std::string& tableName, std::vector<std::string>& indexFiles) {
+        DIR* dir;
+        struct dirent* ent;
+
+        std::string directory = "."; // Current directory; change as needed
+        if ((dir = opendir(directory.c_str())) != nullptr) {
+            while ((ent = readdir(dir)) != nullptr) {
+                std::string filename = ent->d_name;
+                // Check if the filename starts with tableName and ends with "_index"
+                if (filename.rfind(tableName + "_", 0) == 0 && filename.find("_index") != std::string::npos) {
+                    indexFiles.push_back(filename);
+                }
+            }
+            closedir(dir);
+        } else {
+            assert(0);
+        }
     }
 
     RM_IndexScanIterator::RM_IndexScanIterator() = default;
@@ -787,19 +967,19 @@ namespace PeterDB {
     }
 
     IX_ScanIterator &RM_IndexScanIterator::getIxScanIterator() {
-        return _m_ix_scan_iterator;
+        return m_ix_scan_iterator;
     }
 
     void RM_IndexScanIterator::setIxScanIterator(const IX_ScanIterator &mIxScanIterator) {
-        _m_ix_scan_iterator = mIxScanIterator;
+        m_ix_scan_iterator = mIxScanIterator;
     }
 
     void RM_IndexScanIterator::setIxFileHandle(const IXFileHandle &mIxFileHandle) {
-        _m_ix_fileHandle = mIxFileHandle;
+        m_ix_fileHandle = mIxFileHandle;
     }
 
     IXFileHandle &RM_IndexScanIterator::getIxFileHandle(){
-        return _m_ix_fileHandle;
+        return m_ix_fileHandle;
     }
 
 } // namespace PeterDB

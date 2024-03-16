@@ -110,7 +110,6 @@ namespace PeterDB {
         return 0;
     }
 
-
     RC RelationManager::deleteTable(const std::string &tableName) {
         if (!m_catalogCreated) return -1;
 
@@ -128,6 +127,7 @@ namespace PeterDB {
         m_tablesCreated.erase(it);
 
         m_rbfm->destroyFile(getFileName(tableName));
+        destroyIndex(tableName);
         return 0;
     }
 
@@ -717,6 +717,16 @@ namespace PeterDB {
         return m_ix->destroyFile(indexFileName);
     }
 
+    void RelationManager::destroyIndex(const std::string &tableName) {
+        std::vector<Attribute> tableAttributes;
+        getAttributes(tableName, tableAttributes);
+        for (const auto &tableAttribute: tableAttributes) {
+            // if an index exists for this (tableName, attrName), it shall be destroyed
+            // if one does not exist, destoryIndex(...) will simply return -1 which is OK
+            destroyIndex(tableName, tableAttribute.name);
+        }
+    }
+
     // indexScan returns an iterator to allow the caller to go through qualified entries in index
     RC RelationManager::indexScan(const std::string &tableName,
                                   const std::string &attributeName,
@@ -912,7 +922,7 @@ namespace PeterDB {
     }
 
     std::string RelationManager::buildIndexFilename(const std::string &tableName, const std::string &attributeName) {
-        return tableName + "_" + attributeName + "_index.idx";
+        return tableName + "_" + attributeName + "_index" + INDEX_FILETYPE;
     }
 
     std::pair<std::string, std::string> RelationManager::getTableAndAttrFromIndexFileName(const std::string& indexFname) {

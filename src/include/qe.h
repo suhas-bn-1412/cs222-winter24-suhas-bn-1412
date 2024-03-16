@@ -224,13 +224,25 @@ namespace PeterDB {
 
         ~Filter() override;
 
+        static size_t getTupleDataLengthMax(PeterDB::Iterator * input_iterator);
+
+        unsigned int getAttributePosition(const std::string & attributeName) const;
+
+        Value getValueByAttrName(const std::string & attributeName, const std::vector<Value> & values);
+
+        static int compareAttributeValues(const Condition & condition, const Value & lhsValue);
+
+        bool isSatisfiying(const Condition & condition, const Value & value);
+
         RC getNextTuple(void *data) override;
 
         // For attribute in std::vector<Attribute>, name it as rel.attr
         RC getAttributes(std::vector<Attribute> &attrs) const override;
 
     private:
-        const Iterator *m_input_iter;
+        Iterator *m_input_iter;
+        std::vector<Attribute> m_input_attributes;
+        void *m_input_data;
         Condition m_condition;
     };
 

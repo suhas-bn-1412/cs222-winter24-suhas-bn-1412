@@ -912,7 +912,7 @@ namespace PeterDB {
     }
 
     std::string RelationManager::buildIndexFilename(const std::string &tableName, const std::string &attributeName) {
-        return tableName + "_" + attributeName + "_index";
+        return tableName + "_" + attributeName + "_index.idx";
     }
 
     std::pair<std::string, std::string> RelationManager::getTableAndAttrFromIndexFileName(const std::string& indexFname) {

@@ -7,7 +7,7 @@ namespace PeterDB {
     void ValueDeserializer::deserialize(const void *data, const std::vector<Attribute> &attributes,
                                         std::vector<Value> &values) {
         std::vector<bool> isAttrValueNull;
-        deserializeNullFlag(data, values.size(), isAttrValueNull);
+        deserializeNullFlag(data, attributes.size(), isAttrValueNull);
         const unsigned int nullFlagSizeBytes = computeNullFlagSizeBytes(values.size());
         deserializeValues((byte *) data + nullFlagSizeBytes, attributes, isAttrValueNull, values);
     }
@@ -15,7 +15,7 @@ namespace PeterDB {
     void ValueDeserializer::deserializeNullFlag(const void *data, unsigned int numAttributes,
                                                 std::vector<bool> &isAttrValueNull) {
         for (int fieldNum = 0; fieldNum < numAttributes; ++fieldNum) {
-            //fixme
+            //todo
             isAttrValueNull.push_back(false);
         }
     }
@@ -24,28 +24,28 @@ namespace PeterDB {
                                               const std::vector<Attribute> &attributes,
                                               const std::vector<bool> &isAttrNull,
                                               std::vector<Value> &values) {
-        const unsigned int numAttributes = isAttrNull.size();
-        uint32_t attrValSize = 0;
+        const unsigned int numAttributes = attributes.size();
+        uint32_t attributeValueSize;
         for (int fieldNum = 0; fieldNum < numAttributes; ++fieldNum) {
             const AttrType &attributeType = attributes.at(fieldNum).type;
             Value value;
             value.type = attributeType;
 
-            attrValSize = 0;
             if (isAttrNull.at(fieldNum)) {
                 value.data = nullptr;
             } else {
-                attrValSize = 4;
-                if (TypeVarChar == attributeType) {
-                    attrValSize += *((uint32_t*)data);
+                attributeValueSize = 4;
+                if (attributeType == TypeVarChar) {
+                    const uint32_t stringLength = *((uint32_t*)data);
+                    attributeValueSize += stringLength;
                 }
 
-                value.data = malloc(attrValSize);
+                value.data = malloc(attributeValueSize);
                 assert(value.data != nullptr);
-                memcpy(&(value.data), data, attrValSize);
+                memcpy(value.data, data, attributeValueSize);
             }
             values.push_back(value);
-            data += attrValSize;
+            data += attributeValueSize;
         }
     }
 

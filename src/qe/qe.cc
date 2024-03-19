@@ -31,12 +31,13 @@ namespace PeterDB {
         ValueDeserializer::deserialize(m_input_data, m_input_attributes, inputTupleValues);
 
         // 3. extract the value that corresponds to the filter condition's LHS attribute
-        const Value value = getValueByAttrName(m_condition.lhsAttr, inputTupleValues);
+        const unsigned int filterAttributePosition = getAttributePosition(m_condition.lhsAttr);
+        const Value& valueToTest = inputTupleValues.at(filterAttributePosition);
 
         // 4. verify that the value for the filtered-on attribute is non-null
-        if (value.data != nullptr) {
+        if (valueToTest.data != nullptr) {
             // 5. compare the current record's value with the condition
-            if (isSatisfiying(m_condition, value)) {
+            if (isSatisfiying(m_condition, valueToTest)) {
                 // 6. return the current tuple back to the caller
                 // we can either seriaize our vector<value> or simply let the input iter do it for us
                 ValueSerializer::serialize(inputTupleValues, data);
@@ -46,12 +47,6 @@ namespace PeterDB {
 
         // 6. Else, attempt to get the subsequent (filtered) tuple instead
         return getNextTuple(data);
-    }
-
-    Value Filter::getValueByAttrName(const std::string &attributeName, const std::vector<Value> &values) {
-        const unsigned int attributePosition = getAttributePosition(attributeName);
-        assert(attributePosition < values.size());
-        return values.at(attributePosition);
     }
 
     unsigned int Filter::getAttributePosition(const std::string &attributeName) const {

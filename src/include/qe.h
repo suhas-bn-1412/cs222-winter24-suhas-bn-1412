@@ -53,7 +53,7 @@ namespace PeterDB {
 
                 data = malloc(dataLen);
                 assert(nullptr != data);
-                memmove(data, other.data, dataLen);
+                memcpy(data, other.data, dataLen);
             }
         }
 
@@ -227,8 +227,6 @@ namespace PeterDB {
         static size_t getTupleDataLengthMax(PeterDB::Iterator * input_iterator);
 
         unsigned int getAttributePosition(const std::string & attributeName) const;
-
-        Value getValueByAttrName(const std::string & attributeName, const std::vector<Value> & values);
 
         static int compareAttributeValues(const Condition & condition, const Value & lhsValue);
 

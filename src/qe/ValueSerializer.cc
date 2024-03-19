@@ -10,14 +10,9 @@ namespace PeterDB {
         return nullFlagSizeBytes + attributeValuesLengthBytes;
     }
 
-    /*
-     * Serializes vector<Value> into the memory pointed to by data
-     * IMPORTANT: Ensure to subsequently call destory(values)
-     * to free the memory malloc'd to each value's data
-     */
     void ValueSerializer::serialize(const std::vector<Value> &values, void *data) {
         assert(data != nullptr);
-        unsigned int nullFlagLenBytes = computeNullFlagSizeBytes(values.size());
+        const unsigned int nullFlagLenBytes = computeNullFlagSizeBytes(values.size());
         computeAndAddNullFlag(values, data);
         concatAttributeValues(values, (byte *) data + nullFlagLenBytes);
     }
@@ -42,16 +37,12 @@ namespace PeterDB {
         switch (attrType) {
             case TypeInt:
                 return 4;
-                break;
             case TypeReal:
                 return 4;
-                break;
             case TypeVarChar:
                 return *((uint32_t *) &value);
-                break;
         }
         assert(0);
-        return 0;
     }
 
     void ValueSerializer::computeAndAddNullFlag(const std::vector<Value> &values, void *data) {
@@ -80,9 +71,6 @@ namespace PeterDB {
             const uint32_t attrValueSize = getAttributeValueSize(value);
             const AttrType attrType = value.type;
             if (attrType == TypeVarChar) {
-                // prefix the size
-                // memmove(dest, &attrValueSize, sizeof(uint32_t));
-                // dest += sizeof(uint32_t);
                 memcpy(dest, value.data, attrValueSize + sizeof(uint32_t));
                 dest += attrValueSize + sizeof(uint32_t);
             } else {

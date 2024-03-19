@@ -6,8 +6,7 @@
 #include "src/include/ValueDeserializer.h"
 
 namespace PeterDB {
-    Filter::Filter(Iterator *input, const Condition &condition) {
-        m_condition = condition;
+    Filter::Filter(Iterator *input, const Condition &condition): m_condition(condition) {
         m_input_iter = input;
         m_input_iter->getAttributes(m_input_attributes);
         m_input_data = malloc(m_input_attributes.size());

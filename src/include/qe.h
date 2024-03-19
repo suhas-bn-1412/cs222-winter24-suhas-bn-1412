@@ -230,7 +230,7 @@ namespace PeterDB {
 
         static int compareAttributeValues(const Condition & condition, const Value & lhsValue);
 
-        bool isSatisfiying(const Condition & condition, const Value & value);
+        static bool isSatisfiying(const Condition & condition, const Value & value);
 
         RC getNextTuple(void *data) override;
 
@@ -241,7 +241,7 @@ namespace PeterDB {
         Iterator *m_input_iter;
         std::vector<Attribute> m_input_attributes;
         void *m_input_data;
-        Condition m_condition;
+        const Condition &m_condition;
     };
 
     class Project : public Iterator {

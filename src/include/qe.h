@@ -2,6 +2,7 @@
 #define _qe_h_
 
 #include <vector>
+#include <queue>
 #include <string>
 #include <limits>
 
@@ -71,6 +72,43 @@ namespace PeterDB {
                 memmove(data, other.data, dataLen);
             }
             return *this;
+        }
+
+        bool operator==(const Value& other) {
+            assert(type == other.type);
+
+            switch (type) {
+                case TypeInt:
+                    return (*((uint32_t*)data) == *((uint32_t*)other.data));
+                case TypeReal:
+                    return (*((float*)data) == *((float*)other.data));
+                case TypeVarChar:
+                {
+                    uint32_t len1 = * ( (uint32_t*) data);
+                    uint32_t len2 = * ( (uint32_t*) other.data);
+                    if (len1 != len2) return false;
+
+                    char* s1 = new char[len1 + 1];
+                    char* s2 = new char[len2 + 1];
+
+                    std::memcpy(s1, (char*)data + 4, len1);
+                    std::memcpy(s2, (char*)other.data + 4, len2);
+
+                    s1[len1] = '\0'; // Null-terminate the strings
+                    s2[len2] = '\0';
+
+                    int result = strcmp(s1, s2);
+
+                    delete[] s1;
+                    delete[] s2;
+
+                    return (0 == result);
+                }
+                default:
+                    assert(0);
+            }
+            assert(0);
+            return false;
         }
 
         ~Value() {
@@ -273,6 +311,31 @@ namespace PeterDB {
 
     class BNLJoin : public Iterator {
         // Block nested-loop join operator
+    private:
+        Iterator *m_leftIn;
+        TableScan *m_rightIn;
+        Condition m_condition;
+
+        int m_lhsAttrIdx = 0;
+        int m_rhsAttrIdx = 0;
+        AttrType m_compAttrType;
+        std::vector<Attribute> m_attrs;
+        std::vector<Attribute> m_leftAttrs, m_rightAttrs;
+
+        std::queue<unsigned> m_buffer;
+        unsigned m_bufferSize = 0;
+        unsigned m_overflowTupleSize = 0;
+
+        void* m_bufferSpace = nullptr;
+        void* m_overflowTuple = nullptr;
+        void* rightTupleData = nullptr;
+
+        bool m_leftInEOF = false;
+
+        void loadBuffer();
+        bool matchTuples(void* leftTuple, void* rightTuple);
+        void combineTuples(void* leftTuple, void* rightTuple, void* outTuple);
+    
     public:
         BNLJoin(Iterator *leftIn,            // Iterator of input R
                 TableScan *rightIn,           // TableScan Iterator of input S

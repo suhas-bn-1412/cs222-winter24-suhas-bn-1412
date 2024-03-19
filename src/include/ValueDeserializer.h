@@ -20,6 +20,8 @@ namespace PeterDB {
                                       const std::vector<Attribute>& attributes,
                                       const std::vector<bool>& isAttrNull,
                                       std::vector<Value> &values);
+
+        static unsigned int calculateTupleSize(void* data, const std::vector<Attribute>& attrs);
     };
 }
 

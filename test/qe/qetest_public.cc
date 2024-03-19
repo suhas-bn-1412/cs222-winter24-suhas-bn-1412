@@ -85,12 +85,11 @@ namespace PeterDBTesting {
         sort(expected.begin(), expected.end());
         sort(printed.begin(), printed.end());
 
-        ASSERT_EQ(expected.size(), printed.size()) << "The number of returned tuple is not correct.";
-
         for (int i = 0; i < expected.size(); ++i) {
             checkPrintRecord(expected[i], printed[i], false, {});
         }
 
+        ASSERT_EQ(expected.size(), printed.size()) << "The number of returned tuple is not correct.";
     }
 
     TEST_F(QE_Test, table_scan_with_varchar_filter) {

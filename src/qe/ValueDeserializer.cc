@@ -8,7 +8,7 @@ namespace PeterDB {
                                         std::vector<Value> &values) {
         std::vector<bool> isAttrValueNull;
         deserializeNullFlag(data, attributes.size(), isAttrValueNull);
-        const unsigned int nullFlagSizeBytes = computeNullFlagSizeBytes(values.size());
+        const unsigned int nullFlagSizeBytes = computeNullFlagSizeBytes(attributes.size());
         deserializeValues((byte *) data + nullFlagSizeBytes, attributes, isAttrValueNull, values);
     }
 

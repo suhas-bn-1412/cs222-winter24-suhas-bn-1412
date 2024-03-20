@@ -392,19 +392,188 @@ namespace PeterDB {
     }
 
     Aggregate::Aggregate(Iterator *input, const Attribute &aggAttr, AggregateOp op) {
+        m_iterator = input;
+	m_aggAttr = aggAttr;
+	m_op = op;
+	
+        assert(TypeVarChar != m_aggAttr.type);
+
+        m_iterator->getAttributes(m_attrs);
+
+        auto i=0;
+        for (auto& attr: m_attrs) {
+            if(m_aggAttr.name == attr.name) {
+                assert(attr.type == m_aggAttr.type);
+                m_aggAttrIdx = i;
+            }
+            if (m_groupBy && (m_groupAttr.name == attr.name)) {
+                assert(attr.type == m_groupAttr.type);
+                m_groupAttrIdx = i;
+            }
+            i++;
+        }
+
+        if (!m_groupBy) {
+            m_groupAttr.name = "dummy-attr-for-group-by";
+            m_groupAttr.type = TypeVarChar;
+        }
+
+        m_tupleData = malloc(PAGE_SIZE);
+        assert(nullptr != m_tupleData);
+        memset(m_tupleData, 0, PAGE_SIZE);
+
+        fetchAndStoreData();
     }
 
     Aggregate::Aggregate(Iterator *input, const Attribute &aggAttr, const Attribute &groupAttr, AggregateOp op) {
+        m_groupBy = true;
+        m_groupAttr = groupAttr;
+        Aggregate(input, aggAttr, op);
+    }
+
+    void Aggregate::fetchAndStoreData() {
+        m_aggOpInt.clear();
+        m_aggOpReal.clear();
+        m_aggOpVarchar.clear();
+
+        while(QE_EOF != m_iterator->getNextTuple(m_tupleData)) {
+
+            std::vector<Value> attrVals;
+            ValueDeserializer::deserialize(m_tupleData, m_attrs, attrVals);
+
+            void* aggAttr = attrVals[m_aggAttrIdx].data;
+            void* groupByAttr = nullptr;
+            if(m_groupBy)
+                groupByAttr = attrVals[m_groupAttrIdx].data;
+
+            float curVal = 0;
+            if (TypeInt == m_aggAttr.type) {
+                curVal += *((int*)aggAttr);
+            } else {
+                curVal += *((float*)aggAttr);
+            }
+
+            AggOutput dummy;
+            AggOutput& aggOpToUpdate = dummy;
+
+            switch (m_groupAttr.type) {
+                case TypeInt:
+                {
+                    int intKey = *((int*)groupByAttr);
+                    m_aggOpInt[intKey].sum += curVal;
+                    if (curVal < m_aggOpInt[intKey].min) m_aggOpInt[intKey].min = curVal;
+                    if (curVal > m_aggOpInt[intKey].max) m_aggOpInt[intKey].max = curVal;
+                    m_aggOpInt[intKey].cnt++;
+                    break;
+                }
+                case TypeReal:
+                {
+                    float floatKey = *((float*)groupByAttr);
+                    m_aggOpReal[floatKey].sum += curVal;
+                    if (curVal < m_aggOpReal[floatKey].min) m_aggOpReal[floatKey].min = curVal;
+                    if (curVal > m_aggOpReal[floatKey].max) m_aggOpReal[floatKey].max = curVal;
+                    m_aggOpReal[floatKey].cnt++;
+                    break;
+                }
+                case TypeVarChar:
+                {
+                    std::string strKey = m_groupAttr.name;
+                    if (m_groupBy) {
+                        uint32_t len = *((uint32_t*)groupByAttr);
+                        strKey = std::string((char*)groupByAttr + 4, len);
+                    }
+                    m_aggOpVarchar[strKey].sum += curVal;
+                    if (curVal < m_aggOpVarchar[strKey].min) m_aggOpVarchar[strKey].min = curVal;
+                    if (curVal > m_aggOpVarchar[strKey].max) m_aggOpVarchar[strKey].max = curVal;
+                    m_aggOpVarchar[strKey].cnt++;
+                    break;
+                }
+            }
+        }
     }
 
     Aggregate::~Aggregate() {
+        if (nullptr != m_tupleData) {
+            free(m_tupleData);
+            m_tupleData = nullptr;
+        }
     }
 
     RC Aggregate::getNextTuple(void *data) {
-        return -1;
+
+        if (m_eof) return QE_EOF;
+
+        std::vector<Attribute> attrs;
+        getAttributes(attrs);
+
+        Value val1;
+        Value val2;
+
+        val1.type = TypeInt;
+        val1.data = malloc(4);
+        val2.type = TypeReal;
+        val2.data = malloc(4);
+
+        int grpByVal = 0;
+        float result = 0;
+
+        if (!m_groupBy) {
+            result = m_aggOpVarchar[m_groupAttr.name].getVal(m_op);
+            m_eof = true;
+        }
+        else {
+            auto it = m_aggOpInt.begin();
+            if (m_aggOpInt.end() == it) {
+                m_eof = true;
+                return QE_EOF;
+            }
+
+            grpByVal = it->first;
+            result = m_aggOpInt[grpByVal].getVal(m_op);
+
+            m_aggOpInt.erase(grpByVal);
+        }
+
+        memcpy(val1.data, (void*)&grpByVal, 4);
+        memcpy(val2.data, (void*)&result, 4);
+
+        std::vector<Value> tuple;
+        if (m_groupBy) {
+            tuple.push_back(val1);
+        }
+        tuple.push_back(val2);
+
+        ValueSerializer::serialize(tuple, data);
+
+        return 0;
     }
 
     RC Aggregate::getAttributes(std::vector<Attribute> &attrs) const {
-        return -1;
+        
+        attrs.clear();
+        if (m_groupBy) {
+            attrs.push_back(m_groupAttr);
+        }
+
+        Attribute attr = m_aggAttr;
+
+        if(m_op == MAX){
+		attr.name = "MAX(" + m_aggAttr.name + ")";
+	} else if(m_op == MIN){
+		attr.name = "MIN(" + m_aggAttr.name + ")";
+	} else if(m_op == SUM){
+		attr.name = "SUM(" + m_aggAttr.name + ")";
+	} else if(m_op == AVG){
+		attr.name = "AVG(" + m_aggAttr.name + ")";
+	} else if(m_op == COUNT){
+		attr.name = "COUNT(" + m_aggAttr.name + ")";
+	}
+        else {
+            assert(0);
+        }
+
+        attr.type = TypeReal;
+	attrs.push_back(attr);
+        return 0;
     }
 } // namespace PeterDB

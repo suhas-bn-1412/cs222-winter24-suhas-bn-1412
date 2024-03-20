@@ -5,6 +5,7 @@
 #include <queue>
 #include <string>
 #include <limits>
+#include <float.h>
 
 #include "rm.h"
 #include "ix.h"
@@ -386,8 +387,55 @@ namespace PeterDB {
         RC getAttributes(std::vector<Attribute> &attrs) const override;
     };
 
+    typedef struct AggOutput {
+        float cnt = 0;
+        float min = FLT_MAX;
+        float max = FLT_MIN;
+        float sum = 0;
+
+        AggOutput() {}
+
+        double getVal(AggregateOp op) {
+            switch (op) {
+                case COUNT:
+                    return cnt;
+                case MIN:
+                    return min;
+                case MAX:
+                    return max;
+                case SUM:
+                    return sum;
+                case AVG:
+                    return (sum/cnt);
+            }
+            return 0;
+        }
+    } AggOutput;
+
     class Aggregate : public Iterator {
         // Aggregation operator
+    private:
+        Iterator* m_iterator = nullptr;
+        std::vector<Attribute> m_attrs;
+
+        AggregateOp m_op;
+        bool m_eof = false;
+
+        Attribute m_aggAttr;
+        unsigned m_aggAttrIdx = 0;
+
+        bool m_groupBy = false;
+        Attribute m_groupAttr;
+        unsigned m_groupAttrIdx = 0;
+
+        void* m_tupleData = nullptr;
+
+        std::unordered_map<int, AggOutput> m_aggOpInt;
+        std::unordered_map<float, AggOutput> m_aggOpReal;
+        std::unordered_map<std::string, AggOutput> m_aggOpVarchar;
+
+        void fetchAndStoreData();
+
     public:
         // Mandatory
         // Basic aggregation

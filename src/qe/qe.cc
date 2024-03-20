@@ -20,14 +20,14 @@ namespace PeterDB {
 
     RC Filter::getNextTuple(void *data) {
         // 1. fetch the next tuple from the chained input iterator
-        const RC inputIterRc = m_input_iter->getNextTuple(m_input_data);
+        const RC inputIterRc = m_input_iter->getNextTuple(data);
         if (inputIterRc == QE_EOF) {
             return QE_EOF;
         }
 
         // 2. deserialize the input tuple
         std::vector<Value> inputTupleValues;
-        ValueDeserializer::deserialize(m_input_data, m_input_attributes, inputTupleValues);
+        ValueDeserializer::deserialize(data, m_input_attributes, inputTupleValues);
 
         // 3. extract the value that corresponds to the filter condition's LHS attribute
         const unsigned int filterAttributePosition = getAttributePosition(m_condition.lhsAttr);
@@ -39,7 +39,6 @@ namespace PeterDB {
             if (isSatisfiying(m_condition, valueToTest)) {
                 // 6. return the current tuple back to the caller
                 // we can either seriaize our vector<value> or simply let the input iter do it for us
-                ValueSerializer::serialize(inputTupleValues, data);
                 return 0;
             }
         }
@@ -109,7 +108,8 @@ namespace PeterDB {
             case TypeVarChar: {
                 const std::string lhsVal = VarcharSerDes::deserialize(lhsValue.data);
                 const std::string rhsVal = VarcharSerDes::deserialize(condition.rhsValue.data);
-                return strcmp(lhsVal.c_str(), rhsVal.c_str());
+                int strcmpResult = strcmp(lhsVal.c_str(), rhsVal.c_str());
+                return strcmpResult;
             }
             default: ERROR("Unhandled attribute type");
             assert(1);

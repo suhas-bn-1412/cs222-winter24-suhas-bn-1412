@@ -2,12 +2,12 @@
 
 
 ### 1. Basic information
-- Team #:
-- Github Repo Link:
-- Student 1 UCI NetID:
-- Student 1 Name:
-- Student 2 UCI NetID (if applicable):
-- Student 2 Name (if applicable):
+- Team #: 4
+- Github Repo Link: https://github.com/suhas-bn-1412/cs222-winter24-suhas-bn-1412
+- Student 1 UCI NetID: `snhegde`
+- Student 1 Name: Sujay Narashimamurthy Hegde
+- Student 2 UCI NetID (if applicable): `sbasappa`
+- Student 2 Name (if applicable): Suhas Basappa Nataraj
 
 
 ### 2. Catalog information about Index
@@ -17,7 +17,7 @@
 
 ### 3. Filter
 - Describe how your filter works (especially, how you check the condition.)
-
+- Have implemented a compare(Value, Condition) function
 
 
 ### 4. Project
@@ -56,7 +56,9 @@
 
 - Other implementation details:
 
-
+### EXTRA CREDIT: Data Analytics using Texera
+- we built and ran the Texera project locally, and performed data analytics using the provided 1000tweets.csv file.
+- Screen recording: https://www.youtube.com/watch?v=B1sdEnDxbLw
 
 ### 10. Member contribution (for team of two)
 - Explain how you distribute the workload in team.

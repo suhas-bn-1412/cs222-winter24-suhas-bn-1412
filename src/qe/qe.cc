@@ -199,17 +199,168 @@ namespace PeterDB {
     }
 
     BNLJoin::BNLJoin(Iterator *leftIn, TableScan *rightIn, const Condition &condition, const unsigned int numPages) {
+        m_leftIn = leftIn;
+        m_rightIn = rightIn;
+        m_condition = condition;
+
+        m_bufferSize = (numPages-2) * PAGE_SIZE;
+        m_bufferSpace = malloc(m_bufferSize);
+        assert(nullptr != m_bufferSpace);
+        memset(m_bufferSpace, 0, m_bufferSize);
+
+        m_overflowTupleSize = 0;
+        m_overflowTuple = malloc(PAGE_SIZE);
+        assert(nullptr != m_overflowTuple);
+        memset(m_overflowTuple, 0, PAGE_SIZE);
+
+        m_attrs.clear();
+        m_leftIn->getAttributes(m_leftAttrs);
+        m_rightIn->getAttributes(m_rightAttrs);
+        m_attrs.insert(m_attrs.end(), m_leftAttrs.begin(), m_leftAttrs.end());
+        m_attrs.insert(m_attrs.end(), m_rightAttrs.begin(), m_rightAttrs.end());
+
+        m_lhsAttrIdx = 0;
+        m_rhsAttrIdx = 0;
+        int i=0;
+
+        for (auto &lhs_attr: m_leftAttrs) {
+            if (condition.lhsAttr == lhs_attr.name) {
+                m_lhsAttrIdx = i;
+                m_compAttrType = lhs_attr.type;
+                break;
+            }
+            i++;
+        }
+
+        i=0;
+        for (auto& rhs_attr: m_rightAttrs) {
+            if (condition.rhsAttr == rhs_attr.name) {
+                m_rhsAttrIdx = i;
+                if (m_compAttrType != rhs_attr.type) {
+                    assert(-1);
+                }
+                break;
+            }
+            i++;
+        }
+
+        rightTupleData = malloc(PAGE_SIZE);
+        assert(nullptr != rightTupleData);
+        memset(rightTupleData, 0, PAGE_SIZE);
+
+        // Preload tuples from leftIn into the buffer
+        loadBuffer();
     }
 
     BNLJoin::~BNLJoin() {
+        if (nullptr != m_bufferSpace) {
+            free(m_bufferSpace);
+            m_bufferSpace = nullptr;
+        }
+        if (nullptr != m_overflowTuple) {
+            free(m_overflowTuple);
+            m_overflowTuple = nullptr;
+        }
+        if (nullptr != rightTupleData) {
+            free(rightTupleData);
+            rightTupleData = nullptr;
+        }
     }
 
     RC BNLJoin::getNextTuple(void *data) {
-        return -1;
+        if (m_buffer.empty()) {
+            loadBuffer();
+        }
+
+        if (m_buffer.empty()) {
+            return QE_EOF; // No more tuples to process
+        }
+
+        while (!m_buffer.empty()) {
+            while (m_rightIn->getNextTuple(rightTupleData) != QE_EOF) {
+                if (matchTuples((char*)m_bufferSpace + m_buffer.front(), rightTupleData)) {
+                    combineTuples((char*)m_bufferSpace + m_buffer.front(), rightTupleData, data);
+                    return 0;
+                }
+            }
+
+            m_buffer.pop();
+            m_rightIn->setIterator(); // Reset rightIn iterator to scan from the beginning
+        }
+
+        return QE_EOF; // No more tuples to process
     }
 
     RC BNLJoin::getAttributes(std::vector<Attribute> &attrs) const {
-        return -1;
+        attrs.clear();
+        attrs = m_attrs;
+        return 0;
+    }
+
+    void BNLJoin::loadBuffer() {
+        void* tupleData = malloc(PAGE_SIZE);
+
+        // Clear the buffer for new data
+        m_buffer = std::queue<unsigned>();
+        unsigned bufferEnd = 0;
+
+        if (m_overflowTupleSize) {
+            memmove(m_bufferSpace, m_overflowTuple, m_overflowTupleSize);
+            m_buffer.push(bufferEnd);
+            bufferEnd += m_overflowTupleSize;
+
+            memset(m_overflowTuple, 0, PAGE_SIZE);
+            m_overflowTupleSize = 0;
+        }
+
+        while (!m_leftInEOF) {
+            if (QE_EOF == m_leftIn->getNextTuple(tupleData)) {
+                m_leftInEOF = true;
+                break;
+            }
+
+            unsigned tupleSize = ValueDeserializer::calculateTupleSize(tupleData, m_leftAttrs);
+
+            // Check if the tuple fits in the bufferSpace
+            if (bufferEnd + tupleSize > m_bufferSize) {
+                memmove(m_overflowTuple, tupleData, tupleSize);
+                m_overflowTupleSize = tupleSize;
+                break;
+            }
+
+            // Copy tuple to bufferSpace
+            memmove((char*)m_bufferSpace + bufferEnd, tupleData, tupleSize);
+
+            // Store the offset and update bufferEnd
+            m_buffer.push(bufferEnd);
+            bufferEnd += tupleSize;
+        }
+
+        free(tupleData);
+    }
+
+    bool BNLJoin::matchTuples(void* leftTuple, void* rightTuple) {
+        std::vector<Value> leftTupleVals;
+        std::vector<Value> rightTupleVals;
+
+        ValueDeserializer::deserialize(leftTuple, m_leftAttrs, leftTupleVals);
+        ValueDeserializer::deserialize(rightTuple, m_rightAttrs, rightTupleVals);
+
+        return (leftTupleVals[m_lhsAttrIdx] == rightTupleVals[m_rhsAttrIdx]);
+    }
+
+    void BNLJoin::combineTuples(void* leftTuple, void* rightTuple, void* outTuple) {
+        std::vector<Value> leftTupleVals;
+        std::vector<Value> rightTupleVals;
+        std::vector<Value> combinedVals;
+
+        ValueDeserializer::deserialize(leftTuple, m_leftAttrs, leftTupleVals);
+        ValueDeserializer::deserialize(rightTuple, m_rightAttrs, rightTupleVals);
+
+        combinedVals.insert(combinedVals.end(), leftTupleVals.begin(), leftTupleVals.end());
+        combinedVals.insert(combinedVals.end(), rightTupleVals.begin(), rightTupleVals.end());
+
+        ValueSerializer::serialize(combinedVals, outTuple);
     }
 
     INLJoin::INLJoin(Iterator *leftIn, IndexScan *rightIn, const Condition &condition) {

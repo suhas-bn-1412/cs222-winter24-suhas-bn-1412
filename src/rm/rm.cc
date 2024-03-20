@@ -354,6 +354,9 @@ namespace PeterDB {
         return 0;
     }
 
+    // 0 indexed..
+    // in recordData, most significant bit represents the null flag bit
+    // of the attr with attrNum=0
     bool isAttrNull(const void *recordData, const uint16_t &attrNum) {
         uint16_t q = (attrNum) / 8;
         uint16_t r = (attrNum) % 8;
@@ -371,21 +374,9 @@ namespace PeterDB {
             bool isNull = isAttrNull(data, attrIdx);
 
             if (!isNull) {
-                attrSize = 0;
-                switch (attr.type) {
-                    case TypeInt:
-                        attrSize = 4;
-                        break;
-                    case TypeReal:
-                        attrSize = 4;
-                        break;
-                    case TypeVarChar:
-                        attrSize = 4;
-                        attrSize += *((uint32_t*)dataPtr);
-                        break;
-                    default:
-                        assert(0);
-                        break;
+                attrSize = 4;
+                if (TypeVarChar == attr.type) {
+                    attrSize += *((uint32_t*)dataPtr);
                 }
 
                 if (attrToFetch.name == attr.name) {

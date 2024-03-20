@@ -239,6 +239,7 @@ namespace PeterDB {
                 if (m_compAttrType != rhs_attr.type) {
                     assert(-1);
                 }
+                break;
             }
             i++;
         }
@@ -313,7 +314,7 @@ namespace PeterDB {
         }
 
         while (!m_leftInEOF) {
-            if (m_leftIn->getNextTuple(tupleData) != QE_EOF) {
+            if (QE_EOF == m_leftIn->getNextTuple(tupleData)) {
                 m_leftInEOF = true;
                 break;
             }

@@ -9,13 +9,9 @@ namespace PeterDB {
     Filter::Filter(Iterator *input, const Condition &condition): m_condition(condition) {
         m_input_iter = input;
         m_input_iter->getAttributes(m_input_attributes);
-        m_input_data = malloc(m_input_attributes.size());
-        assert(m_input_data != nullptr);
     }
 
     Filter::~Filter() {
-        assert(m_input_data != nullptr);
-        free(m_input_data);
     }
 
     RC Filter::getNextTuple(void *data) {
@@ -39,6 +35,7 @@ namespace PeterDB {
             if (isSatisfiying(m_condition, valueToTest)) {
                 // 6. return the current tuple back to the caller
                 // we can either seriaize our vector<value> or simply let the input iter do it for us
+                ValueSerializer::serialize(inputTupleValues, data);
                 return 0;
             }
         }
@@ -108,6 +105,7 @@ namespace PeterDB {
             case TypeVarChar: {
                 const std::string lhsVal = VarcharSerDes::deserialize(lhsValue.data);
                 const std::string rhsVal = VarcharSerDes::deserialize(condition.rhsValue.data);
+                printf("LHSVal=%s\n", lhsVal.c_str());
                 int strcmpResult = strcmp(lhsVal.c_str(), rhsVal.c_str());
                 return strcmpResult;
             }

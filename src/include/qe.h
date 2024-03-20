@@ -279,7 +279,6 @@ namespace PeterDB {
     private:
         Iterator *m_input_iter;
         std::vector<Attribute> m_input_attributes;
-        void *m_input_data;
         const Condition &m_condition;
     };
 

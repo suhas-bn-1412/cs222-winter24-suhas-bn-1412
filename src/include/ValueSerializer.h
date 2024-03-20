@@ -22,7 +22,7 @@ namespace PeterDB {
 
         static unsigned int computeAttributeValuesLengthBytes(const std::vector<Value> &values);
 
-        static unsigned int getAttributeValueSize(const Value &value);
+        static uint32_t getAttributeValueSize(const Value &value);
 
         static void computeAndAddNullFlag(const std::vector<Value> &values, void *data);
 

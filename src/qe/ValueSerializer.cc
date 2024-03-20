@@ -32,7 +32,7 @@ namespace PeterDB {
         return attributeValuesLengthBytes;
     }
 
-    unsigned int ValueSerializer::getAttributeValueSize(const Value &value) {
+    uint32_t ValueSerializer::getAttributeValueSize(const Value &value) {
         const AttrType attrType = value.type;
         switch (attrType) {
             case TypeInt:
@@ -40,7 +40,7 @@ namespace PeterDB {
             case TypeReal:
                 return 4;
             case TypeVarChar:
-                return *((uint32_t *) &value);
+                return *((uint32_t *) value.data);
         }
         assert(0);
     }

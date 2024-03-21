@@ -737,7 +737,10 @@ namespace PeterDB {
 
         // IndexFilename format: <tableName>_<attrName>_index
         const std::string indexFileName = buildIndexFilename(tableName, attributeName);
-        m_ix->createFile(indexFileName);
+        if (0 != m_ix->createFile(indexFileName)) {
+            ERROR("Error while creating index file for table=%s, attribute=%s \n", tableName.c_str(), attributeName.c_str());
+            return -1;
+        }
 
         // bulk load previously inserted tuples
         retrospectivelyInsertExistingKeysIntoIndex(tableName, attributeName);

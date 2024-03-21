@@ -389,10 +389,12 @@ namespace PeterDB {
         return -1;
     }
 
-    Aggregate::Aggregate(Iterator *input, const Attribute &aggAttr, AggregateOp op) {
+    Aggregate::Aggregate(Iterator *input, const Attribute &aggAttr, const Attribute &groupAttr, AggregateOp op) {
         m_iterator = input;
 	m_aggAttr = aggAttr;
 	m_op = op;
+        m_groupBy = true;
+        m_groupAttr = groupAttr;
 	
         assert(TypeVarChar != m_aggAttr.type);
 
@@ -411,11 +413,6 @@ namespace PeterDB {
             i++;
         }
 
-        if (!m_groupBy) {
-            m_groupAttr.name = "dummy-attr-for-group-by";
-            m_groupAttr.type = TypeVarChar;
-        }
-
         m_tupleData = malloc(PAGE_SIZE);
         assert(nullptr != m_tupleData);
         memset(m_tupleData, 0, PAGE_SIZE);
@@ -423,10 +420,40 @@ namespace PeterDB {
         fetchAndStoreData();
     }
 
-    Aggregate::Aggregate(Iterator *input, const Attribute &aggAttr, const Attribute &groupAttr, AggregateOp op) {
-        m_groupBy = true;
-        m_groupAttr = groupAttr;
-        Aggregate(input, aggAttr, op);
+    Aggregate::Aggregate(Iterator *input, const Attribute &aggAttr, AggregateOp op) {
+        m_iterator = input;
+	m_aggAttr = aggAttr;
+	m_op = op;
+	
+        m_groupBy = false;
+        Attribute dummyGrpAttr;
+        dummyGrpAttr.name = "dummy-attr-for-group-by";
+        dummyGrpAttr.type = TypeVarChar;
+        dummyGrpAttr.length = 10;
+        m_groupAttr = dummyGrpAttr;
+
+        assert(TypeVarChar != m_aggAttr.type);
+
+        m_iterator->getAttributes(m_attrs);
+
+        auto i=0;
+        for (auto& attr: m_attrs) {
+            if(m_aggAttr.name == attr.name) {
+                assert(attr.type == m_aggAttr.type);
+                m_aggAttrIdx = i;
+            }
+            if (m_groupBy && (m_groupAttr.name == attr.name)) {
+                assert(attr.type == m_groupAttr.type);
+                m_groupAttrIdx = i;
+            }
+            i++;
+        }
+
+        m_tupleData = malloc(PAGE_SIZE);
+        assert(nullptr != m_tupleData);
+        memset(m_tupleData, 0, PAGE_SIZE);
+
+        fetchAndStoreData();
     }
 
     void Aggregate::fetchAndStoreData() {

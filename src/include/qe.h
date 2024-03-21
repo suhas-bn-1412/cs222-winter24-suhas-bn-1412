@@ -423,7 +423,7 @@ namespace PeterDB {
         Attribute m_aggAttr;
         unsigned m_aggAttrIdx = 0;
 
-        bool m_groupBy = false;
+        bool m_groupBy = true;
         Attribute m_groupAttr;
         unsigned m_groupAttrIdx = 0;
 

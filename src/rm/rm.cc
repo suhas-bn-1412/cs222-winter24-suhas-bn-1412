@@ -713,6 +713,7 @@ namespace PeterDB {
             INFO("Added rid to index\n");
         } while (true);
 
+        scan_iter.close();
         m_ix->closeFile(ixFileHandle);
         free(recordData);
     }

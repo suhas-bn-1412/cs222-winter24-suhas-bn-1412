@@ -179,7 +179,7 @@ namespace PeterDB {
 
         // serialize the data into vector of values
         std::vector<Value> all_tuples;
-        ValueDeserializer::deserialize(m_tupleData, m_projectedAttrDefs, all_tuples);
+        ValueDeserializer::deserialize(m_tupleData, m_allAttributes, all_tuples);
 
         std::vector<Value> projectedAttrValues;
         for (auto attrName: m_projectedAttrNames) {

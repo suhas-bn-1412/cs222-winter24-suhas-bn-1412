@@ -547,6 +547,13 @@ namespace PeterDB {
                           const void *startKey, const bool shouldIncludeStartKey,
                           const void *endKey, const bool shouldIncludeEndKey,
                           const Attribute &keyAttribute) {
+        if (0 == pageNumBegin) {
+            // the pageNum was sent as rootPageNum, but since the root was not read yet
+            // we have to read the root page number and should use that as begin page
+            ixFileHandle->fetchRootNodePtrFromDisk();
+            pageNumBegin = ixFileHandle->_rootPageNum;
+        }
+
         _ixFileHandle = ixFileHandle;
         _shouldIncludeEndKey = shouldIncludeEndKey;
         _keyType = keyAttribute.type;

@@ -794,13 +794,14 @@ namespace PeterDB {
         IXFileHandle &ixFileHandle = rm_IndexScanIterator.getIxFileHandle();
         m_ix->openFile(indexFilename, ixFileHandle);
 
-        rm_IndexScanIterator.getIxScanIterator().init(&ixFileHandle,
-                                                      ixFileHandle._rootPageNum,
-                                                      lowKey,
-                                                      lowKeyInclusive,
-                                                      highKey,
-                                                      highKeyInclusive,
-                                                      getAttributeDefn(tableName, attributeName));
+        m_ix->scan(ixFileHandle,
+                   getAttributeDefn(tableName, attributeName),
+                   lowKey,
+                   highKey,
+                   lowKeyInclusive,
+                   highKeyInclusive,
+                   rm_IndexScanIterator.getIxScanIterator());
+
         return 0;
     }
 

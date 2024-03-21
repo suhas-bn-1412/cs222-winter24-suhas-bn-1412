@@ -113,6 +113,8 @@ namespace PeterDB {
 
         RC dropAttribute(const std::string &tableName, const std::string &attributeName);
 
+        void retrospectivelyInsertExistingKeysIntoIndex(const std::string & table_name, const std::string & attribute_name);
+
         // QE IX related
         RC createIndex(const std::string &tableName, const std::string &attributeName);
 

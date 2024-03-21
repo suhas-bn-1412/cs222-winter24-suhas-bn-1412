@@ -677,6 +677,47 @@ namespace PeterDB {
         return -1;
     }
 
+    void RelationManager::retrospectivelyInsertExistingKeysIntoIndex(const std::string &table_name,
+        const std::string &attribute_name) {
+        const std::string indexFileName = buildIndexFilename(table_name, attribute_name);
+        IXFileHandle ixFileHandle;
+        m_ix->openFile(indexFileName, ixFileHandle);
+
+        // prepare attr names of table = tableName
+        Attribute indexAttribute;
+        std::vector<Attribute> attributes;
+        getAttributes(table_name, attributes);
+        for (const auto &attribute: attributes) {
+            if (strcmp(attribute.name.c_str(), attribute_name.c_str()) == 0) {
+                indexAttribute = attribute;
+                break;
+            }
+        }
+
+        std::vector<std::string> attributeNames;
+        attributeNames.push_back(attribute_name);
+
+        // scan for existing records
+        RM_ScanIterator scan_iter;
+        void *recordData = malloc(30);
+        scan(table_name, attribute_name, NO_OP, nullptr, attributeNames, scan_iter);
+
+        RID recordRid;
+        RC scanRC;
+        do {
+            scanRC = scan_iter.getNextTuple(recordRid, recordData);
+            if (scanRC == RM_EOF) {
+                break;
+            }
+            m_ix->insertEntry(ixFileHandle, indexAttribute, recordData, recordRid);
+            INFO("Added rid to index\n");
+        } while (true);
+
+        m_ix->closeFile(ixFileHandle);
+        free(recordData);
+    }
+
+
     // Extra credit work
     RC RelationManager::addAttribute(const std::string &tableName, const Attribute &attr) {
         return -1;
@@ -684,6 +725,8 @@ namespace PeterDB {
 
     // QE IX related
     RC RelationManager::createIndex(const std::string &tableName, const std::string &attributeName) {
+        INFO("Creaitng index for tableName=%s on attribute=%s\n",
+             tableName, attributeName);
         // check if index already exists (currently, just check for filename on disk)
         if (doesIndexExist(tableName, attributeName)) {
             ERROR("Index for table=%s, attribute=%s already exists",
@@ -693,7 +736,12 @@ namespace PeterDB {
 
         // IndexFilename format: <tableName>_<attrName>_index
         const std::string indexFileName = buildIndexFilename(tableName, attributeName);
-        return m_ix->createFile(indexFileName);
+        m_ix->createFile(indexFileName);
+
+        // bulk load previously inserted tuples
+        retrospectivelyInsertExistingKeysIntoIndex(tableName, attributeName);
+
+        return 0;
     }
 
     RC RelationManager::destroyIndex(const std::string &tableName, const std::string &attributeName) {

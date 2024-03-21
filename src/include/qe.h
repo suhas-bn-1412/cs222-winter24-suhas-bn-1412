@@ -55,7 +55,7 @@ namespace PeterDB {
 
                 data = malloc(dataLen);
                 assert(nullptr != data);
-                memcpy(data, other.data, dataLen);
+                memmove(data, other.data, dataLen);
             }
         }
 
@@ -92,8 +92,8 @@ namespace PeterDB {
                     char* s1 = new char[len1 + 1];
                     char* s2 = new char[len2 + 1];
 
-                    std::memcpy(s1, (char*)data + 4, len1);
-                    std::memcpy(s2, (char*)other.data + 4, len2);
+                    memmove(s1, (char*)data + 4, len1);
+                    memmove(s2, (char*)other.data + 4, len2);
 
                     s1[len1] = '\0'; // Null-terminate the strings
                     s2[len2] = '\0';

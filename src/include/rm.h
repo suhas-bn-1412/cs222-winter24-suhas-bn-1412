@@ -6,10 +6,13 @@
 #include <unordered_map>
 
 #include "src/include/rbfm.h"
+#include "src/include/ix.h"
+#include "src/include/catalogueConstants.h"
 #include "attributeAndValue.h"
 
 namespace PeterDB {
 #define RM_EOF (-1)  // end of a scan operator
+#define INDEX_FILETYPE ".idx"
 
     class RelationManager;
 
@@ -27,15 +30,16 @@ namespace PeterDB {
 
         RC close();
 
-        RC init(RelationManager* rm, RecordBasedFileManager* rbfm, const std::string& tableName);
+        RC init(RelationManager *rm, RecordBasedFileManager *rbfm, const std::string &tableName);
+
         RC initRbfmsi(const std::string &conditionAttribute,
                       const CompOp compOp,
                       const void *value,
                       const std::vector<std::string> &attributeNames);
 
         bool m_initDone = false;
-        RelationManager* m_rm = nullptr;
-        RecordBasedFileManager* m_rbfm = nullptr;
+        RelationManager *m_rm = nullptr;
+        RecordBasedFileManager *m_rbfm = nullptr;
         FileHandle m_fh;
         std::vector<Attribute> m_attrs;
         RBFM_ScanIterator m_rbfmsi;
@@ -44,12 +48,24 @@ namespace PeterDB {
     // RM_IndexScanIterator is an iterator to go through index entries
     class RM_IndexScanIterator {
     public:
-        RM_IndexScanIterator();    // Constructor
-        ~RM_IndexScanIterator();    // Destructor
+        RM_IndexScanIterator(); // Constructor
+        ~RM_IndexScanIterator(); // Destructor
 
         // "key" follows the same format as in IndexManager::insertEntry()
-        RC getNextEntry(RID &rid, void *key);    // Get next matching entry
-        RC close();                              // Terminate index scan
+        RC getNextEntry(RID &rid, void *key); // Get next matching entry
+        RC close(); // Terminate index scan
+
+        IXFileHandle &getIxFileHandle();
+
+        IX_ScanIterator &getIxScanIterator();
+
+        void setIxScanIterator(const IX_ScanIterator &mIxScanIterator);
+
+        void setIxFileHandle(const IXFileHandle &mIxFileHandle);
+
+    private:
+        IXFileHandle m_ix_fileHandle;
+        IX_ScanIterator m_ix_scan_iterator;
     };
 
     // Relation Manager
@@ -62,6 +78,8 @@ namespace PeterDB {
         RC deleteCatalog();
 
         RC createTable(const std::string &tableName, const std::vector<Attribute> &attrs);
+
+        void destroyIndex(const std::string &tableName);
 
         RC deleteTable(const std::string &tableName);
 
@@ -85,8 +103,8 @@ namespace PeterDB {
         // Do not store entire results in the scan iterator.
         RC scan(const std::string &tableName,
                 const std::string &conditionAttribute,
-                const CompOp compOp,                  // comparison type such as "<" and "="
-                const void *value,                    // used in the comparison
+                const CompOp compOp, // comparison type such as "<" and "="
+                const void *value, // used in the comparison
                 const std::vector<std::string> &attributeNames, // a list of projected attributes
                 RM_ScanIterator &rm_ScanIterator);
 
@@ -94,6 +112,8 @@ namespace PeterDB {
         RC addAttribute(const std::string &tableName, const Attribute &attr);
 
         RC dropAttribute(const std::string &tableName, const std::string &attributeName);
+
+        void retrospectivelyInsertExistingKeysIntoIndex(const std::string & table_name, const std::string & attribute_name);
 
         // QE IX related
         RC createIndex(const std::string &tableName, const std::string &attributeName);
@@ -110,20 +130,21 @@ namespace PeterDB {
                      RM_IndexScanIterator &rm_IndexScanIterator);
 
         // given table name, creates fileHandle and Record descriptor
-        RC getFileHandleAndAttributes(const std::string& tableName, FileHandle& fh, std::vector<Attribute>& attrs);
+        RC getFileHandleAndAttributes(const std::string &tableName, FileHandle &fh, std::vector<Attribute> &attrs);
 
     protected:
-        RelationManager();                                                  // Prevent construction
-        ~RelationManager();                                                 // Prevent unwanted destruction
-        RelationManager(const RelationManager &);                           // Prevent construction by copying
-        RelationManager &operator=(const RelationManager &);                // Prevent assignment
+        RelationManager(); // Prevent construction
+        ~RelationManager(); // Prevent unwanted destruction
+        RelationManager(const RelationManager &); // Prevent construction by copying
+        RelationManager &operator=(const RelationManager &); // Prevent assignment
 
         bool m_catalogCreated = false;
         RecordBasedFileManager *m_rbfm = nullptr;
+        IndexManager *m_ix = nullptr;
         std::unordered_map<std::string, bool> m_tablesCreated;
 
         // opens both Tables table and Attributes table
-        RC openTablesAndAttributesFH(FileHandle& tableFileHandle, FileHandle& attributesFileHandle);
+        RC openTablesAndAttributesFH(FileHandle &tableFileHandle, FileHandle &attributesFileHandle);
 
         void initTablesTable();
 
@@ -131,13 +152,30 @@ namespace PeterDB {
 
         void buildAttributesForAttributesTable(int tableId,
                                                const std::vector<Attribute> &attributes,
-                                               std::vector<std::vector<AttributeAndValue>>&);
+                                               std::vector<std::vector<AttributeAndValue> > &);
 
         int computeNextTableId();
 
         void buildAndInsertAttributesIntoAttributesTable(const std::vector<Attribute> &attrs, int tid);
-    };
 
+        std::pair<std::string, std::string> getTableAndAttrFromIndexFileName(const std::string &indexFname);
+
+        static std::string buildIndexFilename(const std::string &tableName, const std::string &attributeName);
+
+        static bool doesIndexExist(const std::string &tableName, const std::string &attributeName);
+
+        static void getIndexNames(const std::string &tableName, std::vector<std::string> &indexFiles);
+
+        Attribute getAttributeDefn(const std::string &tableName, const std::string &attributeName);
+
+        void insertIntoIndex(const std::string &tableName,
+                             const std::vector<Attribute> &attrs,
+                             const void *recordData, const RID &rid);
+
+        void deleteFromIndex(const std::string &tableName,
+                             const std::vector<Attribute> &attrs,
+                             const void *recordData, const RID &rid);
+    };
 } // namespace PeterDB
 
 #endif // _rm_h_

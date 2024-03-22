@@ -176,8 +176,8 @@ namespace PeterDB {
         unsigned ixWritePageCounter;
         unsigned ixAppendPageCounter;
 
-        std::string _fileName = "";
-        unsigned int _rootPagePtr = 0;
+        std::string _fileName;
+        unsigned int _rootPageNum = 0;
 
         FileHandle _pfmFileHandle;
 

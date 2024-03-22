@@ -10,6 +10,7 @@ namespace PeterDB {
         static unsigned int computeSerializedDataLenBytes(std::vector<AttributeAndValue> *attributeAndValues);
 
         static void serialize(const std::vector<AttributeAndValue> &attributeAndValues, void *data);
+
     private:
 
         static unsigned int computeNullFlagSizeBytes(unsigned int numFields);

@@ -2,8 +2,10 @@
 #define _qe_h_
 
 #include <vector>
+#include <queue>
 #include <string>
 #include <limits>
+#include <float.h>
 
 #include "rm.h"
 #include "ix.h"
@@ -22,7 +24,101 @@ namespace PeterDB {
 
     typedef struct Value {
         AttrType type;          // type of value
-        void *data;             // value
+        void *data = nullptr;   // value
+
+        Value() {}
+
+        Value(AttrType t, void* d) {
+            type = t;
+
+            if (nullptr != d) {
+                int dataLen = 4;
+                if (TypeVarChar == t) {
+                    dataLen += *((uint32_t*)d);
+                }
+
+                data = malloc(dataLen);
+                assert(nullptr != data);
+                memmove(data, d, dataLen);
+            }
+        }
+
+        // copy constructor
+        Value(const Value& other) {
+            type = other.type;
+
+            if (nullptr != other.data) {
+                int dataLen = 4;
+                if (TypeVarChar == type) {
+                    dataLen += *((uint32_t*)other.data);
+                }
+
+                data = malloc(dataLen);
+                assert(nullptr != data);
+                memmove(data, other.data, dataLen);
+            }
+        }
+
+        Value& operator=(const Value& other) {
+            type = other.type;
+
+            if (nullptr != other.data) {
+                int dataLen = 4;
+                if (TypeVarChar == type) {
+                    dataLen += *((uint32_t*)other.data);
+                }
+
+                data = malloc(dataLen);
+                assert(nullptr != data);
+                memmove(data, other.data, dataLen);
+            }
+            return *this;
+        }
+
+        bool operator==(const Value& other) {
+            assert(type == other.type);
+
+            switch (type) {
+                case TypeInt:
+                    return (*((uint32_t*)data) == *((uint32_t*)other.data));
+                case TypeReal:
+                    return (*((float*)data) == *((float*)other.data));
+                case TypeVarChar:
+                {
+                    uint32_t len1 = * ( (uint32_t*) data);
+                    uint32_t len2 = * ( (uint32_t*) other.data);
+                    if (len1 != len2) return false;
+
+                    char* s1 = new char[len1 + 1];
+                    char* s2 = new char[len2 + 1];
+
+                    memmove(s1, (char*)data + 4, len1);
+                    memmove(s2, (char*)other.data + 4, len2);
+
+                    s1[len1] = '\0'; // Null-terminate the strings
+                    s2[len2] = '\0';
+
+                    int result = strcmp(s1, s2);
+
+                    delete[] s1;
+                    delete[] s2;
+
+                    return (0 == result);
+                }
+                default:
+                    assert(0);
+            }
+            assert(0);
+            return false;
+        }
+
+        ~Value() {
+            if (nullptr != data) {
+                free(data);
+                data = nullptr;
+            }
+        }
+
     } Value;
 
     typedef struct Condition {
@@ -167,14 +263,41 @@ namespace PeterDB {
 
         ~Filter() override;
 
+        static size_t getTupleDataLengthMax(PeterDB::Iterator * input_iterator);
+
+        unsigned int getAttributePosition(const std::string & attributeName) const;
+
+        static int compareAttributeValues(const Condition & condition, const Value & lhsValue);
+
+        static bool isSatisfiying(const Condition & condition, const Value & value);
+
         RC getNextTuple(void *data) override;
 
         // For attribute in std::vector<Attribute>, name it as rel.attr
         RC getAttributes(std::vector<Attribute> &attrs) const override;
+
+    private:
+        Iterator *m_input_iter;
+        std::vector<Attribute> m_input_attributes;
+        const Condition &m_condition;
     };
 
     class Project : public Iterator {
         // Projection operator
+    private:
+        bool m_eof = false;
+        Iterator* m_iterator = nullptr;
+        std::vector<std::string> m_projectedAttrNames;
+        std::vector<Attribute> m_allAttributes;
+        std::vector<Attribute> m_projectedAttrDefs;
+
+        // store projected attribute definition and where to find the projected attribute
+        // in the tuple which we get from iterator.getNextTuple
+        std::unordered_map<std::string, std::pair<Attribute, int>> m_projectedAttrs;
+
+        int m_maxSpaceRequired = 0;
+        void* m_tupleData = nullptr;
+
     public:
         Project(Iterator *input,                                // Iterator of input R
                 const std::vector<std::string> &attrNames);     // std::vector containing attribute names
@@ -188,6 +311,31 @@ namespace PeterDB {
 
     class BNLJoin : public Iterator {
         // Block nested-loop join operator
+    private:
+        Iterator *m_leftIn;
+        TableScan *m_rightIn;
+        Condition m_condition;
+
+        int m_lhsAttrIdx = 0;
+        int m_rhsAttrIdx = 0;
+        AttrType m_compAttrType;
+        std::vector<Attribute> m_attrs;
+        std::vector<Attribute> m_leftAttrs, m_rightAttrs;
+
+        std::queue<unsigned> m_buffer;
+        unsigned m_bufferSize = 0;
+        unsigned m_overflowTupleSize = 0;
+
+        void* m_bufferSpace = nullptr;
+        void* m_overflowTuple = nullptr;
+        void* rightTupleData = nullptr;
+
+        bool m_leftInEOF = false;
+
+        void loadBuffer();
+        bool matchTuples(void* leftTuple, void* rightTuple);
+        void combineTuples(void* leftTuple, void* rightTuple, void* outTuple);
+    
     public:
         BNLJoin(Iterator *leftIn,            // Iterator of input R
                 TableScan *rightIn,           // TableScan Iterator of input S
@@ -238,8 +386,55 @@ namespace PeterDB {
         RC getAttributes(std::vector<Attribute> &attrs) const override;
     };
 
+    typedef struct AggOutput {
+        float cnt = 0;
+        float min = FLT_MAX;
+        float max = FLT_MIN;
+        float sum = 0;
+
+        AggOutput() {}
+
+        double getVal(AggregateOp op) {
+            switch (op) {
+                case COUNT:
+                    return cnt;
+                case MIN:
+                    return min;
+                case MAX:
+                    return max;
+                case SUM:
+                    return sum;
+                case AVG:
+                    return (sum/cnt);
+            }
+            return 0;
+        }
+    } AggOutput;
+
     class Aggregate : public Iterator {
         // Aggregation operator
+    private:
+        Iterator* m_iterator = nullptr;
+        std::vector<Attribute> m_attrs;
+
+        AggregateOp m_op;
+        bool m_eof = false;
+
+        Attribute m_aggAttr;
+        unsigned m_aggAttrIdx = 0;
+
+        bool m_groupBy = true;
+        Attribute m_groupAttr;
+        unsigned m_groupAttrIdx = 0;
+
+        void* m_tupleData = nullptr;
+
+        std::unordered_map<int, AggOutput> m_aggOpInt;
+        std::unordered_map<float, AggOutput> m_aggOpReal;
+        std::unordered_map<std::string, AggOutput> m_aggOpVarchar;
+
+        void fetchAndStoreData();
+
     public:
         // Mandatory
         // Basic aggregation

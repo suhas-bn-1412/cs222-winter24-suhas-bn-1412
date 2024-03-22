@@ -1013,11 +1013,11 @@ namespace PeterDB {
     RM_IndexScanIterator::~RM_IndexScanIterator() = default;
 
     RC RM_IndexScanIterator::getNextEntry(RID &rid, void *key){
-        return -1;
+        return m_ix_scan_iterator.getNextEntry(rid, key);
     }
 
     RC RM_IndexScanIterator::close(){
-        return -1;
+        return m_ix_scan_iterator.close();
     }
 
     IX_ScanIterator &RM_IndexScanIterator::getIxScanIterator() {
